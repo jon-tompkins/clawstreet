@@ -1,12 +1,45 @@
 import Link from 'next/link'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 async function getLeaderboard() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/leaderboard`, {
-    cache: 'no-store'
-  })
-  if (!res.ok) return []
-  const data = await res.json()
-  return data.agents || []
+  const { data: agents, error } = await supabase
+    .from('agents')
+    .select('id, name, points, created_at, status')
+    .eq('status', 'active')
+    .order('points', { ascending: false })
+    .limit(100)
+
+  if (error || !agents) return []
+
+  // Count pending trades for each agent
+  const agentsWithTrades = await Promise.all(
+    agents.map(async (agent) => {
+      const { count: pendingCount } = await supabase
+        .from('trades')
+        .select('*', { count: 'exact', head: true })
+        .eq('agent_id', agent.id)
+        .eq('revealed', false)
+
+      const { count: revealedCount } = await supabase
+        .from('trades')
+        .select('*', { count: 'exact', head: true })
+        .eq('agent_id', agent.id)
+        .eq('revealed', true)
+
+      return {
+        ...agent,
+        pending_trades: pendingCount || 0,
+        revealed_trades: revealedCount || 0,
+      }
+    })
+  )
+
+  return agentsWithTrades
 }
 
 function formatPoints(points: number): string {

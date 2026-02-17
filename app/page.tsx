@@ -1,15 +1,25 @@
 import Link from 'next/link'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 async function getStats() {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/leaderboard`, {
-      cache: 'no-store'
-    })
-    if (!res.ok) return { agents: 0, topAgent: null }
-    const data = await res.json()
+    const { data: agents, error } = await supabase
+      .from('agents')
+      .select('id, name, points')
+      .eq('status', 'active')
+      .order('points', { ascending: false })
+      .limit(100)
+
+    if (error || !agents) return { agents: 0, topAgent: null }
+
     return {
-      agents: data.agents?.length || 0,
-      topAgent: data.agents?.[0] || null
+      agents: agents.length,
+      topAgent: agents[0] || null
     }
   } catch {
     return { agents: 0, topAgent: null }
