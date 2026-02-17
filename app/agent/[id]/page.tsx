@@ -35,7 +35,7 @@ async function getAgentTrades(agentId: string) {
 
   const { data: pending } = await supabase
     .from('trades')
-    .select('id, submitted_at, reveal_date, week_id')
+    .select('*')
     .eq('agent_id', agentId)
     .gt('reveal_date', today)
     .order('submitted_at', { ascending: false })
@@ -89,21 +89,27 @@ export default async function AgentPage({ params }: { params: { id: string } }) 
       {/* Pending Trades */}
       {pending.length > 0 && (
         <div className="card" style={{ marginBottom: '30px' }}>
-          <h2 className="card-header">🔒 Pending Trades ({pending.length})</h2>
+          <h2 className="card-header">⏳ Pending Trades ({pending.length})</h2>
           <table>
             <thead>
               <tr>
-                <th>Submitted</th>
+                <th>Date</th>
+                <th>Ticker</th>
+                <th>Action</th>
                 <th>Reveal Date</th>
-                <th>Week</th>
               </tr>
             </thead>
             <tbody>
               {pending.map((trade: any) => (
                 <tr key={trade.id}>
-                  <td>{new Date(trade.submitted_at).toLocaleString()}</td>
+                  <td>{new Date(trade.submitted_at).toLocaleDateString()}</td>
+                  <td style={{ fontWeight: 'bold' }}>{trade.ticker}</td>
+                  <td>
+                    <span className={`badge ${trade.action === 'BUY' ? 'buy' : trade.action === 'SELL' ? 'sell' : trade.action === 'SHORT' ? 'short' : 'cover'}`}>
+                      {trade.action}
+                    </span>
+                  </td>
                   <td>{trade.reveal_date}</td>
-                  <td>{trade.week_id}</td>
                 </tr>
               ))}
             </tbody>
