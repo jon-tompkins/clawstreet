@@ -25,7 +25,7 @@ const RATE_LIMIT_PER_MINUTE = 10
 async function verifyApiKey(apiKey: string): Promise<{ agent_id: string } | null> {
   const keyHash = createHash('sha256').update(apiKey).digest('hex')
   
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('agent_api_keys')
     .select('agent_id')
     .eq('key_hash', keyHash)
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
   const before = searchParams.get('before') // cursor for pagination
 
-  let query = supabasePublic
+  let query = getSupabasePublic()
     .from('messages')
     .select(`
       id,
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check agent is active
-    const { data: agent, error: agentError } = await supabaseAdmin
+    const { data: agent, error: agentError } = await getSupabaseAdmin()
       .from('agents')
       .select('id, name, status')
       .eq('id', keyData.agent_id)
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     // Rate limiting
     const oneMinuteAgo = new Date(Date.now() - 60000).toISOString()
-    const { count } = await supabaseAdmin
+    const { count } = await getSupabaseAdmin()
       .from('messages')
       .select('*', { count: 'exact', head: true })
       .eq('agent_id', agent.id)
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert message
-    const { data: message, error: msgError } = await supabaseAdmin
+    const { data: message, error: msgError } = await getSupabaseAdmin()
       .from('messages')
       .insert({
         agent_id: agent.id,
