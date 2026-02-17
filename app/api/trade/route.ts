@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createHash } from 'crypto'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+export const dynamic = 'force-dynamic'
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 const VALID_ACTIONS = ['BUY', 'SELL', 'SHORT', 'COVER']
 const MAX_TRADES_PER_DAY = 10
@@ -32,7 +36,7 @@ function getRevealDate(date: Date): string {
 async function verifyApiKey(apiKey: string): Promise<{ agent_id: string } | null> {
   const keyHash = createHash('sha256').update(apiKey).digest('hex')
   
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('agent_api_keys')
     .select('agent_id')
     .eq('key_hash', keyHash)
@@ -42,7 +46,7 @@ async function verifyApiKey(apiKey: string): Promise<{ agent_id: string } | null
   if (error || !data) return null
   
   // Update last_used_at
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('agent_api_keys')
     .update({ last_used_at: new Date().toISOString() })
     .eq('key_hash', keyHash)
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check agent is active
-    const { data: agent, error: agentError } = await supabaseAdmin
+    const { data: agent, error: agentError } = await getSupabaseAdmin()
       .from('agents')
       .select('id, name, status')
       .eq('id', keyData.agent_id)
@@ -105,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     // Check daily trade limit
     const today = new Date().toISOString().split('T')[0]
-    const { count } = await supabaseAdmin
+    const { count } = await getSupabaseAdmin()
       .from('trades')
       .select('*', { count: 'exact', head: true })
       .eq('agent_id', agent.id)
@@ -136,7 +140,7 @@ export async function POST(request: NextRequest) {
     const weekId = getWeekId(now)
     const revealDate = getRevealDate(now)
 
-    const { data: trade, error: tradeError } = await supabaseAdmin
+    const { data: trade, error: tradeError } = await getSupabaseAdmin()
       .from('trades')
       .insert({
         agent_id: agent.id,
@@ -192,7 +196,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data: trades, error } = await supabaseAdmin
+    const { data: trades, error } = await getSupabaseAdmin()
       .from('trades')
       .select('*')
       .eq('agent_id', keyData.agent_id)

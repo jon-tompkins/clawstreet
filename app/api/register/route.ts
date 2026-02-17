@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { randomBytes, createHash } from 'crypto'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+export const dynamic = 'force-dynamic'
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function POST(request: NextRequest) {
+  const supabaseAdmin = getSupabaseAdmin()
   try {
     const body = await request.json()
     const { name, wallet_address, entry_fee_tx } = body
@@ -32,7 +37,7 @@ export async function POST(request: NextRequest) {
     // For now, we'll accept it and mark as pending
 
     // Create agent
-    const { data: agent, error: agentError } = await supabaseAdmin
+    const { data: agent, error: agentError } = await getSupabaseAdmin()
       .from('agents')
       .insert({
         name,
@@ -58,7 +63,7 @@ export async function POST(request: NextRequest) {
     const apiKey = randomBytes(32).toString('hex')
     const keyHash = createHash('sha256').update(apiKey).digest('hex')
 
-    await supabaseAdmin
+    await getSupabaseAdmin()
       .from('agent_api_keys')
       .insert({
         agent_id: agent.id,
