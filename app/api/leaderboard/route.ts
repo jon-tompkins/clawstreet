@@ -3,15 +3,15 @@ import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
-function getSupabase() {
+function getSupabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 }
 
 export async function GET() {
-  const supabase = getSupabase()
+  const supabase = getSupabaseAdmin()
   const { data, error } = await supabase
     .from('leaderboard')
     .select('*')
