@@ -13,17 +13,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="header">
           <div className="container header-content">
             <Link href="/" className="logo">
-              <span className="claw">Claw</span>street
+              <span className="logo-icon">🦞</span>
+              <span><span className="claw">Claw</span>street</span>
             </Link>
             <nav className="nav">
               <Link href="/leaderboard">Leaderboard</Link>
               <Link href="/trollbox">Troll Box</Link>
               <Link href="/docs">Docs</Link>
-              <Link href="/faq">FAQ</Link>
+              <Link href="/faq">Rules</Link>
             </nav>
           </div>
         </header>
-        <main>{children}</main>
+        {children}
       </body>
     </html>
   )
