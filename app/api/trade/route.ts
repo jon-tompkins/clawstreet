@@ -11,8 +11,86 @@ function getSupabaseAdmin() {
   )
 }
 
-const VALID_ACTIONS = ['BUY', 'SELL', 'SHORT', 'COVER']
+const VALID_ACTIONS = ['BUY', 'SELL', 'SHORT', 'COVER'] as const
+type TradeAction = typeof VALID_ACTIONS[number]
+
 const MAX_TRADES_PER_DAY = 10
+
+// S&P 500 + most liquid NASDAQ (top ~600 tickers by liquidity)
+// This is a subset — expand as needed
+const VALID_TICKERS = new Set([
+  // Mega caps
+  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK.A', 'BRK.B',
+  'UNH', 'JNJ', 'JPM', 'V', 'XOM', 'PG', 'MA', 'HD', 'CVX', 'MRK',
+  'ABBV', 'LLY', 'PEP', 'KO', 'COST', 'AVGO', 'WMT', 'MCD', 'CSCO', 'TMO',
+  'ACN', 'ABT', 'DHR', 'NEE', 'LIN', 'ADBE', 'NKE', 'TXN', 'PM', 'UNP',
+  'RTX', 'BMY', 'ORCL', 'HON', 'QCOM', 'COP', 'LOW', 'AMGN', 'UPS', 'IBM',
+  'SPGI', 'CAT', 'BA', 'GE', 'SBUX', 'INTC', 'INTU', 'AMD', 'PLD', 'AMAT',
+  'DE', 'ISRG', 'MDLZ', 'ADP', 'GILD', 'ADI', 'BKNG', 'REGN', 'VRTX', 'MMC',
+  'TJX', 'SYK', 'CVS', 'LRCX', 'PGR', 'ZTS', 'CB', 'CI', 'SCHW', 'MO',
+  'EOG', 'SO', 'DUK', 'BDX', 'ITW', 'CME', 'SLB', 'SNPS', 'CL', 'CDNS',
+  'NOC', 'EQIX', 'HUM', 'PNC', 'APD', 'MMM', 'AON', 'MU', 'ETN', 'ICE',
+  'FDX', 'MCO', 'WM', 'EMR', 'GD', 'NSC', 'CCI', 'ORLY', 'SHW', 'PXD',
+  'AZO', 'ATVI', 'KLAC', 'MCHP', 'MAR', 'KMB', 'AEP', 'MSI', 'D', 'PSA',
+  'FTNT', 'AIG', 'MET', 'F', 'GM', 'TGT', 'EL', 'ADSK', 'OXY', 'MRNA',
+  'DVN', 'NEM', 'CTSH', 'TRV', 'HCA', 'PAYX', 'ROST', 'YUM', 'KDP', 'TEL',
+  'VLO', 'AMP', 'NXPI', 'A', 'STZ', 'HPQ', 'SRE', 'WMB', 'CARR', 'GIS',
+  'DG', 'O', 'DLTR', 'ALL', 'FAST', 'EA', 'HES', 'PRU', 'CTAS', 'LHX',
+  'CMG', 'KR', 'MSCI', 'VRSK', 'PH', 'RMD', 'WELL', 'DLR', 'BIIB', 'IQV',
+  'AFL', 'PCAR', 'HSY', 'IDXX', 'ALB', 'XEL', 'AME', 'DXCM', 'MTD', 'ODFL',
+  'MNST', 'CPRT', 'EW', 'HAL', 'FANG', 'AJG', 'EXC', 'DOW', 'CTVA', 'GWW',
+  'VICI', 'ED', 'CSGP', 'IT', 'KEYS', 'ON', 'ANSS', 'CDW', 'ROK', 'OTIS',
+  'WST', 'DD', 'PPG', 'SBAC', 'WEC', 'WBD', 'GPN', 'APTV', 'VMC', 'MLM',
+  'BKR', 'STT', 'ILMN', 'AWK', 'DHI', 'LEN', 'TSCO', 'CHD', 'RJF', 'URI',
+  'CBOE', 'FIS', 'TROW', 'HBAN', 'FRC', 'FITB', 'DTE', 'ES', 'CFG', 'EIX',
+  'CINF', 'RF', 'LUV', 'DAL', 'UAL', 'AAL', 'CCL', 'RCL', 'NCLH', 'MAA',
+  'LVS', 'MGM', 'WYNN', 'HLT', 'IRM', 'TDG', 'WAB', 'BALL', 'HOLX', 'ALGN',
+  'POOL', 'JBHT', 'EXPD', 'CHRW', 'XYL', 'WAT', 'FE', 'NTRS', 'SYF', 'KEY',
+  'NDAQ', 'EPAM', 'TRMB', 'LDOS', 'TER', 'PAYC', 'MKTX', 'AKAM', 'PKI', 'TXT',
+  'CE', 'ZBRA', 'PTC', 'SWKS', 'MOH', 'DRI', 'ULTA', 'BBY', 'ETSY', 'EBAY',
+  'ENPH', 'SEDG', 'GNRC', 'MPWR', 'MTCH', 'SNAP', 'PINS', 'ROKU', 'ZM', 'DOCU',
+  'CRWD', 'ZS', 'NET', 'DDOG', 'SNOW', 'MDB', 'OKTA', 'PANW', 'SPLK', 'WDAY',
+  'NOW', 'CRM', 'TEAM', 'VEEV', 'HUBS', 'TTD', 'BILL', 'SHOP', 'SQ', 'PYPL',
+  'COIN', 'HOOD', 'SOFI', 'AFRM', 'UPST', 'LC', 'NFLX', 'DIS', 'CMCSA', 'T',
+  'VZ', 'TMUS', 'CHTR', 'PARA', 'WBD', 'FOX', 'FOXA', 'NWS', 'NWSA', 'OMC',
+  'IPG', 'MTCH', 'IAC', 'EXPE', 'BKNG', 'ABNB', 'UBER', 'LYFT', 'DASH', 'GRAB',
+  'RIVN', 'LCID', 'NIO', 'XPEV', 'LI', 'FSR', 'GOEV', 'NKLA', 'RIDE', 'WKHS',
+  'PLTR', 'PATH', 'AI', 'BBAI', 'SOUN', 'GENI', 'STEM', 'CHPT', 'BLNK', 'EVGO',
+  'PLUG', 'FCEL', 'BE', 'BLDP', 'CLNE', 'RUN', 'NOVA', 'ARRY', 'MAXN', 'JKS',
+  'SPWR', 'CSIQ', 'DQ', 'FLNC', 'EOSE', 'QS', 'MVST', 'DCRC', 'SLDP', 'AMPX',
+  // Energy
+  'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'PXD', 'OXY', 'DVN', 'HES', 'HAL', 'BKR',
+  'VLO', 'MPC', 'PSX', 'FANG', 'APA', 'CTRA', 'MRO', 'OVV', 'MTDR', 'PR',
+  'ET', 'EPD', 'KMI', 'WMB', 'OKE', 'TRGP', 'LNG', 'PAA', 'MPLX', 'ENLC',
+  // Uranium/Nuclear
+  'CCJ', 'UEC', 'DNN', 'NXE', 'UUUU', 'URG', 'LEU', 'SMR', 'OKLO', 'NNE',
+  // Mining/Materials  
+  'NEM', 'GOLD', 'FNV', 'WPM', 'AEM', 'KGC', 'AU', 'AGI', 'BTG', 'EGO',
+  'FCX', 'SCCO', 'TECK', 'RIO', 'BHP', 'VALE', 'CLF', 'X', 'NUE', 'STLD',
+  'AA', 'CENX', 'ACH', 'LAC', 'ALB', 'SQM', 'LTHM', 'PLL', 'MP', 'UUUU',
+  // Defense
+  'LMT', 'RTX', 'NOC', 'GD', 'BA', 'LHX', 'TDG', 'HII', 'TXT', 'KTOS',
+  'PLTR', 'ONDS', 'AVAV', 'RKLB', 'ASTS', 'BWXT', 'AXON', 'CACI', 'LDOS', 'SAIC',
+  // Financials
+  'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'SCHW', 'BLK', 'BX', 'KKR', 'APO',
+  'ARES', 'CG', 'OWL', 'TROW', 'BEN', 'IVZ', 'AMG', 'JEF', 'EVR', 'HLI',
+  // Crypto-adjacent
+  'COIN', 'MSTR', 'MARA', 'RIOT', 'CLSK', 'IREN', 'HUT', 'BITF', 'CIFR', 'CORZ',
+  // Healthcare
+  'UNH', 'JNJ', 'PFE', 'MRK', 'ABBV', 'LLY', 'TMO', 'ABT', 'DHR', 'BMY',
+  'AMGN', 'GILD', 'REGN', 'VRTX', 'MRNA', 'BNTX', 'ZTS', 'SYK', 'BDX', 'MDT',
+  'ISRG', 'EW', 'BSX', 'ZBH', 'HOLX', 'DXCM', 'ALGN', 'PODD', 'IDXX', 'A',
+  // REITs
+  'PLD', 'AMT', 'EQIX', 'CCI', 'PSA', 'SPG', 'WELL', 'DLR', 'O', 'VICI',
+  'AVB', 'EQR', 'MAA', 'ESS', 'UDR', 'INVH', 'AMH', 'SUI', 'ELS', 'CPT',
+  // ETFs (popular liquid ones)
+  'SPY', 'QQQ', 'IWM', 'DIA', 'VOO', 'VTI', 'VEA', 'VWO', 'EEM', 'EFA',
+  'XLF', 'XLE', 'XLK', 'XLV', 'XLI', 'XLY', 'XLP', 'XLU', 'XLB', 'XLRE',
+  'GLD', 'SLV', 'USO', 'UNG', 'TLT', 'HYG', 'LQD', 'JNK', 'AGG', 'BND',
+  'ARKK', 'ARKG', 'ARKF', 'ARKW', 'ARKQ', 'SOXL', 'SOXS', 'TQQQ', 'SQQQ', 'SPXS',
+  'UVXY', 'VXX', 'SVXY', 'UPRO', 'SPXU', 'TNA', 'TZA', 'FAS', 'FAZ', 'LABU',
+  'LABD', 'NUGT', 'DUST', 'JNUG', 'JDST', 'ERX', 'ERY', 'BOIL', 'KOLD', 'URA',
+])
 
 // Get the current week ID (e.g., "2026-W07")
 function getWeekId(date: Date): string {
@@ -26,9 +104,8 @@ function getWeekId(date: Date): string {
 // Get reveal date (Friday of next week)
 function getRevealDate(date: Date): string {
   const d = new Date(date)
-  // Move to next week's Friday
   const daysUntilFriday = (5 - d.getDay() + 7) % 7
-  d.setDate(d.getDate() + daysUntilFriday + 7) // Next week's Friday
+  d.setDate(d.getDate() + daysUntilFriday + 7)
   return d.toISOString().split('T')[0]
 }
 
@@ -45,7 +122,6 @@ async function verifyApiKey(apiKey: string): Promise<{ agent_id: string } | null
 
   if (error || !data) return null
   
-  // Update last_used_at
   await getSupabaseAdmin()
     .from('agent_api_keys')
     .update({ last_used_at: new Date().toISOString() })
@@ -54,9 +130,45 @@ async function verifyApiKey(apiKey: string): Promise<{ agent_id: string } | null
   return data
 }
 
+// Get agent's current position for a ticker
+async function getPosition(agentId: string, ticker: string): Promise<'LONG' | 'SHORT' | null> {
+  const supabase = getSupabaseAdmin()
+  
+  // Get all trades for this agent/ticker, ordered by time
+  const { data: trades } = await supabase
+    .from('trades')
+    .select('action')
+    .eq('agent_id', agentId)
+    .eq('ticker', ticker)
+    .order('submitted_at', { ascending: true })
+
+  if (!trades || trades.length === 0) return null
+
+  // Calculate net position
+  let position: 'LONG' | 'SHORT' | null = null
+  
+  for (const trade of trades) {
+    switch (trade.action) {
+      case 'BUY':
+        position = 'LONG'
+        break
+      case 'SELL':
+        position = null
+        break
+      case 'SHORT':
+        position = 'SHORT'
+        break
+      case 'COVER':
+        position = null
+        break
+    }
+  }
+
+  return position
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Get API key from header
     const apiKey = request.headers.get('X-API-Key')
     if (!apiKey) {
       return NextResponse.json(
@@ -65,7 +177,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify API key
     const keyData = await verifyApiKey(apiKey)
     if (!keyData) {
       return NextResponse.json(
@@ -74,7 +185,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check agent is active
     const { data: agent, error: agentError } = await getSupabaseAdmin()
       .from('agents')
       .select('id, name, status')
@@ -88,11 +198,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Parse trade request
     const body = await request.json()
     const { ticker, action } = body
 
-    // Validate
     if (!ticker || !action) {
       return NextResponse.json(
         { error: 'Missing required fields: ticker, action' },
@@ -100,11 +208,74 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!VALID_ACTIONS.includes(action.toUpperCase())) {
+    const upperTicker = ticker.toUpperCase()
+    const upperAction = action.toUpperCase() as TradeAction
+
+    // Validate action
+    if (!VALID_ACTIONS.includes(upperAction)) {
       return NextResponse.json(
-        { error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(', ')}` },
+        { error: `Invalid action. Must be: ${VALID_ACTIONS.join(', ')}` },
         { status: 400 }
       )
+    }
+
+    // Validate ticker is in whitelist
+    if (!VALID_TICKERS.has(upperTicker)) {
+      return NextResponse.json(
+        { error: `Invalid ticker: ${upperTicker}. Must be a liquid NYSE/NASDAQ stock or ETF.` },
+        { status: 400 }
+      )
+    }
+
+    // Check position requirements
+    const currentPosition = await getPosition(agent.id, upperTicker)
+
+    if (upperAction === 'SELL') {
+      if (currentPosition !== 'LONG') {
+        return NextResponse.json(
+          { error: `Cannot SELL ${upperTicker}: no long position. Must BUY first.` },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (upperAction === 'COVER') {
+      if (currentPosition !== 'SHORT') {
+        return NextResponse.json(
+          { error: `Cannot COVER ${upperTicker}: no short position. Must SHORT first.` },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (upperAction === 'BUY') {
+      if (currentPosition === 'LONG') {
+        return NextResponse.json(
+          { error: `Already LONG ${upperTicker}. SELL first to close, then BUY again.` },
+          { status: 400 }
+        )
+      }
+      if (currentPosition === 'SHORT') {
+        return NextResponse.json(
+          { error: `Currently SHORT ${upperTicker}. COVER first before going LONG.` },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (upperAction === 'SHORT') {
+      if (currentPosition === 'SHORT') {
+        return NextResponse.json(
+          { error: `Already SHORT ${upperTicker}. COVER first to close, then SHORT again.` },
+          { status: 400 }
+        )
+      }
+      if (currentPosition === 'LONG') {
+        return NextResponse.json(
+          { error: `Currently LONG ${upperTicker}. SELL first before going SHORT.` },
+          { status: 400 }
+        )
+      }
     }
 
     // Check daily trade limit
@@ -123,20 +294,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check trading hours (before 3:30 PM ET)
     const now = new Date()
-    const etHour = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' })).getHours()
-    const etMinute = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' })).getMinutes()
-    
-    // For now, allow trading anytime (TODO: enforce 3:30 PM cutoff)
-    // if (etHour > 15 || (etHour === 15 && etMinute >= 30)) {
-    //   return NextResponse.json(
-    //     { error: 'Trading closed for today. Cutoff is 3:30 PM ET.' },
-    //     { status: 400 }
-    //   )
-    // }
-
-    // Insert trade
     const weekId = getWeekId(now)
     const revealDate = getRevealDate(now)
 
@@ -144,17 +302,20 @@ export async function POST(request: NextRequest) {
       .from('trades')
       .insert({
         agent_id: agent.id,
-        ticker: ticker.toUpperCase(),
-        action: action.toUpperCase(),
+        ticker: upperTicker,
+        action: upperAction,
         week_id: weekId,
         reveal_date: revealDate,
       })
       .select()
       .single()
 
-    if (tradeError) {
-      throw tradeError
-    }
+    if (tradeError) throw tradeError
+
+    // Determine new position after trade
+    const newPosition = (upperAction === 'BUY') ? 'LONG' 
+      : (upperAction === 'SHORT') ? 'SHORT' 
+      : null
 
     return NextResponse.json({
       success: true,
@@ -166,6 +327,7 @@ export async function POST(request: NextRequest) {
         reveal_date: trade.reveal_date,
         week_id: trade.week_id,
       },
+      position: newPosition ? `Now ${newPosition} ${upperTicker}` : `Closed ${upperTicker} position`,
       trades_remaining_today: MAX_TRADES_PER_DAY - (count || 0) - 1,
     })
   } catch (error: any) {
