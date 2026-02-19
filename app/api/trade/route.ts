@@ -15,9 +15,10 @@ const VALID_ACTIONS = ['BUY', 'SELL', 'SHORT', 'COVER'] as const
 type TradeAction = typeof VALID_ACTIONS[number]
 
 const MAX_TRADES_PER_DAY = 10
+const MIN_TRADE_AMOUNT = 1000  // Minimum 1K points per trade
+const MAX_TRADE_AMOUNT = 500000  // Maximum 500K points per trade
 
-// S&P 500 + most liquid NASDAQ (top ~600 tickers by liquidity)
-// This is a subset — expand as needed
+// S&P 500 + most liquid NASDAQ (expanded list)
 const VALID_TICKERS = new Set([
   // Mega caps
   'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK.A', 'BRK.B',
@@ -28,71 +29,32 @@ const VALID_TICKERS = new Set([
   'SPGI', 'CAT', 'BA', 'GE', 'SBUX', 'INTC', 'INTU', 'AMD', 'PLD', 'AMAT',
   'DE', 'ISRG', 'MDLZ', 'ADP', 'GILD', 'ADI', 'BKNG', 'REGN', 'VRTX', 'MMC',
   'TJX', 'SYK', 'CVS', 'LRCX', 'PGR', 'ZTS', 'CB', 'CI', 'SCHW', 'MO',
-  'EOG', 'SO', 'DUK', 'BDX', 'ITW', 'CME', 'SLB', 'SNPS', 'CL', 'CDNS',
-  'NOC', 'EQIX', 'HUM', 'PNC', 'APD', 'MMM', 'AON', 'MU', 'ETN', 'ICE',
-  'FDX', 'MCO', 'WM', 'EMR', 'GD', 'NSC', 'CCI', 'ORLY', 'SHW', 'PXD',
-  'AZO', 'ATVI', 'KLAC', 'MCHP', 'MAR', 'KMB', 'AEP', 'MSI', 'D', 'PSA',
-  'FTNT', 'AIG', 'MET', 'F', 'GM', 'TGT', 'EL', 'ADSK', 'OXY', 'MRNA',
-  'DVN', 'NEM', 'CTSH', 'TRV', 'HCA', 'PAYX', 'ROST', 'YUM', 'KDP', 'TEL',
-  'VLO', 'AMP', 'NXPI', 'A', 'STZ', 'HPQ', 'SRE', 'WMB', 'CARR', 'GIS',
-  'DG', 'O', 'DLTR', 'ALL', 'FAST', 'EA', 'HES', 'PRU', 'CTAS', 'LHX',
-  'CMG', 'KR', 'MSCI', 'VRSK', 'PH', 'RMD', 'WELL', 'DLR', 'BIIB', 'IQV',
-  'AFL', 'PCAR', 'HSY', 'IDXX', 'ALB', 'XEL', 'AME', 'DXCM', 'MTD', 'ODFL',
-  'MNST', 'CPRT', 'EW', 'HAL', 'FANG', 'AJG', 'EXC', 'DOW', 'CTVA', 'GWW',
-  'VICI', 'ED', 'CSGP', 'IT', 'KEYS', 'ON', 'ANSS', 'CDW', 'ROK', 'OTIS',
-  'WST', 'DD', 'PPG', 'SBAC', 'WEC', 'WBD', 'GPN', 'APTV', 'VMC', 'MLM',
-  'BKR', 'STT', 'ILMN', 'AWK', 'DHI', 'LEN', 'TSCO', 'CHD', 'RJF', 'URI',
-  'CBOE', 'FIS', 'TROW', 'HBAN', 'FRC', 'FITB', 'DTE', 'ES', 'CFG', 'EIX',
-  'CINF', 'RF', 'LUV', 'DAL', 'UAL', 'AAL', 'CCL', 'RCL', 'NCLH', 'MAA',
-  'LVS', 'MGM', 'WYNN', 'HLT', 'IRM', 'TDG', 'WAB', 'BALL', 'HOLX', 'ALGN',
-  'POOL', 'JBHT', 'EXPD', 'CHRW', 'XYL', 'WAT', 'FE', 'NTRS', 'SYF', 'KEY',
-  'NDAQ', 'EPAM', 'TRMB', 'LDOS', 'TER', 'PAYC', 'MKTX', 'AKAM', 'PKI', 'TXT',
-  'CE', 'ZBRA', 'PTC', 'SWKS', 'MOH', 'DRI', 'ULTA', 'BBY', 'ETSY', 'EBAY',
-  'ENPH', 'SEDG', 'GNRC', 'MPWR', 'MTCH', 'SNAP', 'PINS', 'ROKU', 'ZM', 'DOCU',
-  'CRWD', 'ZS', 'NET', 'DDOG', 'SNOW', 'MDB', 'OKTA', 'PANW', 'SPLK', 'WDAY',
-  'NOW', 'CRM', 'TEAM', 'VEEV', 'HUBS', 'TTD', 'BILL', 'SHOP', 'SQ', 'PYPL',
-  'COIN', 'HOOD', 'SOFI', 'AFRM', 'UPST', 'LC', 'NFLX', 'DIS', 'CMCSA', 'T',
-  'VZ', 'TMUS', 'CHTR', 'PARA', 'WBD', 'FOX', 'FOXA', 'NWS', 'NWSA', 'OMC',
-  'IPG', 'MTCH', 'IAC', 'EXPE', 'BKNG', 'ABNB', 'UBER', 'LYFT', 'DASH', 'GRAB',
-  'RIVN', 'LCID', 'NIO', 'XPEV', 'LI', 'FSR', 'GOEV', 'NKLA', 'RIDE', 'WKHS',
-  'PLTR', 'PATH', 'AI', 'BBAI', 'SOUN', 'GENI', 'STEM', 'CHPT', 'BLNK', 'EVGO',
-  'PLUG', 'FCEL', 'BE', 'BLDP', 'CLNE', 'RUN', 'NOVA', 'ARRY', 'MAXN', 'JKS',
-  'SPWR', 'CSIQ', 'DQ', 'FLNC', 'EOSE', 'QS', 'MVST', 'DCRC', 'SLDP', 'AMPX',
+  // Tech
+  'CRM', 'NOW', 'SNOW', 'PLTR', 'CRWD', 'ZS', 'NET', 'DDOG', 'MDB', 'OKTA',
+  'PANW', 'WDAY', 'TEAM', 'VEEV', 'HUBS', 'TTD', 'SHOP', 'SQ', 'PYPL', 'COIN',
+  'NFLX', 'DIS', 'CMCSA', 'T', 'VZ', 'TMUS', 'UBER', 'LYFT', 'DASH', 'ABNB',
   // Energy
-  'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'PXD', 'OXY', 'DVN', 'HES', 'HAL', 'BKR',
-  'VLO', 'MPC', 'PSX', 'FANG', 'APA', 'CTRA', 'MRO', 'OVV', 'MTDR', 'PR',
-  'ET', 'EPD', 'KMI', 'WMB', 'OKE', 'TRGP', 'LNG', 'PAA', 'MPLX', 'ENLC',
+  'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'OXY', 'DVN', 'HES', 'HAL', 'BKR',
+  'VLO', 'MPC', 'PSX', 'FANG', 'ET', 'EPD', 'KMI', 'WMB', 'OKE', 'LNG',
   // Uranium/Nuclear
   'CCJ', 'UEC', 'DNN', 'NXE', 'UUUU', 'URG', 'LEU', 'SMR', 'OKLO', 'NNE',
   // Mining/Materials  
-  'NEM', 'GOLD', 'FNV', 'WPM', 'AEM', 'KGC', 'AU', 'AGI', 'BTG', 'EGO',
-  'FCX', 'SCCO', 'TECK', 'RIO', 'BHP', 'VALE', 'CLF', 'X', 'NUE', 'STLD',
-  'AA', 'CENX', 'ACH', 'LAC', 'ALB', 'SQM', 'LTHM', 'PLL', 'MP', 'UUUU',
+  'NEM', 'GOLD', 'FNV', 'WPM', 'FCX', 'SCCO', 'RIO', 'BHP', 'VALE', 'CLF',
+  'NUE', 'STLD', 'AA', 'LAC', 'ALB', 'SQM', 'MP',
   // Defense
-  'LMT', 'RTX', 'NOC', 'GD', 'BA', 'LHX', 'TDG', 'HII', 'TXT', 'KTOS',
-  'PLTR', 'ONDS', 'AVAV', 'RKLB', 'ASTS', 'BWXT', 'AXON', 'CACI', 'LDOS', 'SAIC',
+  'LMT', 'RTX', 'NOC', 'GD', 'BA', 'LHX', 'TDG', 'HII', 'KTOS', 'AVAV',
+  'RKLB', 'AXON', 'LDOS', 'SAIC',
   // Financials
-  'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'SCHW', 'BLK', 'BX', 'KKR', 'APO',
-  'ARES', 'CG', 'OWL', 'TROW', 'BEN', 'IVZ', 'AMG', 'JEF', 'EVR', 'HLI',
+  'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'SCHW', 'BLK', 'BX', 'KKR',
+  // EV/Auto
+  'TSLA', 'RIVN', 'LCID', 'NIO', 'F', 'GM',
   // Crypto-adjacent
-  'COIN', 'MSTR', 'MARA', 'RIOT', 'CLSK', 'IREN', 'HUT', 'BITF', 'CIFR', 'CORZ',
-  // Healthcare
-  'UNH', 'JNJ', 'PFE', 'MRK', 'ABBV', 'LLY', 'TMO', 'ABT', 'DHR', 'BMY',
-  'AMGN', 'GILD', 'REGN', 'VRTX', 'MRNA', 'BNTX', 'ZTS', 'SYK', 'BDX', 'MDT',
-  'ISRG', 'EW', 'BSX', 'ZBH', 'HOLX', 'DXCM', 'ALGN', 'PODD', 'IDXX', 'A',
-  // REITs
-  'PLD', 'AMT', 'EQIX', 'CCI', 'PSA', 'SPG', 'WELL', 'DLR', 'O', 'VICI',
-  'AVB', 'EQR', 'MAA', 'ESS', 'UDR', 'INVH', 'AMH', 'SUI', 'ELS', 'CPT',
-  // ETFs (popular liquid ones)
-  'SPY', 'QQQ', 'IWM', 'DIA', 'VOO', 'VTI', 'VEA', 'VWO', 'EEM', 'EFA',
-  'XLF', 'XLE', 'XLK', 'XLV', 'XLI', 'XLY', 'XLP', 'XLU', 'XLB', 'XLRE',
-  'GLD', 'SLV', 'USO', 'UNG', 'TLT', 'HYG', 'LQD', 'JNK', 'AGG', 'BND',
-  'ARKK', 'ARKG', 'ARKF', 'ARKW', 'ARKQ', 'SOXL', 'SOXS', 'TQQQ', 'SQQQ', 'SPXS',
-  'UVXY', 'VXX', 'SVXY', 'UPRO', 'SPXU', 'TNA', 'TZA', 'FAS', 'FAZ', 'LABU',
-  'LABD', 'NUGT', 'DUST', 'JNUG', 'JDST', 'ERX', 'ERY', 'BOIL', 'KOLD', 'URA',
+  'COIN', 'MSTR', 'MARA', 'RIOT', 'CLSK',
+  // ETFs
+  'SPY', 'QQQ', 'IWM', 'DIA', 'VOO', 'VTI', 'XLF', 'XLE', 'XLK', 'XLV',
+  'GLD', 'SLV', 'USO', 'TLT', 'HYG', 'ARKK', 'SOXL', 'TQQQ', 'URA',
 ])
 
-// Get the current week ID (e.g., "2026-W07")
 function getWeekId(date: Date): string {
   const year = date.getFullYear()
   const startOfYear = new Date(year, 0, 1)
@@ -101,7 +63,6 @@ function getWeekId(date: Date): string {
   return `${year}-W${week.toString().padStart(2, '0')}`
 }
 
-// Get reveal date (Friday of next week)
 function getRevealDate(date: Date): string {
   const d = new Date(date)
   const daysUntilFriday = (5 - d.getDay() + 7) % 7
@@ -109,7 +70,6 @@ function getRevealDate(date: Date): string {
   return d.toISOString().split('T')[0]
 }
 
-// Verify API key and get agent
 async function verifyApiKey(apiKey: string): Promise<{ agent_id: string } | null> {
   const keyHash = createHash('sha256').update(apiKey).digest('hex')
   
@@ -130,41 +90,14 @@ async function verifyApiKey(apiKey: string): Promise<{ agent_id: string } | null
   return data
 }
 
-// Get agent's current position for a ticker
-async function getPosition(agentId: string, ticker: string): Promise<'LONG' | 'SHORT' | null> {
-  const supabase = getSupabaseAdmin()
-  
-  // Get all trades for this agent/ticker, ordered by time
-  const { data: trades } = await supabase
-    .from('trades')
-    .select('action')
+async function getAgentPosition(agentId: string, ticker: string) {
+  const { data } = await getSupabaseAdmin()
+    .from('positions')
+    .select('*')
     .eq('agent_id', agentId)
     .eq('ticker', ticker)
-    .order('submitted_at', { ascending: true })
-
-  if (!trades || trades.length === 0) return null
-
-  // Calculate net position
-  let position: 'LONG' | 'SHORT' | null = null
-  
-  for (const trade of trades) {
-    switch (trade.action) {
-      case 'BUY':
-        position = 'LONG'
-        break
-      case 'SELL':
-        position = null
-        break
-      case 'SHORT':
-        position = 'SHORT'
-        break
-      case 'COVER':
-        position = null
-        break
-    }
-  }
-
-  return position
+    .single()
+  return data
 }
 
 export async function POST(request: NextRequest) {
@@ -185,9 +118,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: agent, error: agentError } = await getSupabaseAdmin()
+    const supabase = getSupabaseAdmin()
+    
+    const { data: agent, error: agentError } = await supabase
       .from('agents')
-      .select('id, name, status')
+      .select('id, name, status, points, cash_balance')
       .eq('id', keyData.agent_id)
       .single()
 
@@ -199,7 +134,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { ticker, action } = body
+    const { ticker, action, amount } = body
 
     if (!ticker || !action) {
       return NextResponse.json(
@@ -210,6 +145,7 @@ export async function POST(request: NextRequest) {
 
     const upperTicker = ticker.toUpperCase()
     const upperAction = action.toUpperCase() as TradeAction
+    const tradeAmount = amount ? Number(amount) : null
 
     // Validate action
     if (!VALID_ACTIONS.includes(upperAction)) {
@@ -219,7 +155,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate ticker is in whitelist
+    // Validate ticker
     if (!VALID_TICKERS.has(upperTicker)) {
       return NextResponse.json(
         { error: `Invalid ticker: ${upperTicker}. Must be a liquid NYSE/NASDAQ stock or ETF.` },
@@ -227,52 +163,68 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check position requirements
-    const currentPosition = await getPosition(agent.id, upperTicker)
+    // Get current position
+    const currentPosition = await getAgentPosition(agent.id, upperTicker)
+    const cashBalance = agent.cash_balance || agent.points || 1000000
 
-    if (upperAction === 'SELL') {
-      if (currentPosition !== 'LONG') {
+    // Validate based on action
+    if (upperAction === 'BUY' || upperAction === 'SHORT') {
+      // Opening a new position - amount required
+      if (!tradeAmount) {
         return NextResponse.json(
-          { error: `Cannot SELL ${upperTicker}: no long position. Must BUY first.` },
+          { error: 'Amount required for BUY/SHORT. Specify points to allocate (e.g., amount: 10000)' },
+          { status: 400 }
+        )
+      }
+      
+      if (tradeAmount < MIN_TRADE_AMOUNT) {
+        return NextResponse.json(
+          { error: `Minimum trade amount is ${MIN_TRADE_AMOUNT.toLocaleString()} points` },
+          { status: 400 }
+        )
+      }
+      
+      if (tradeAmount > MAX_TRADE_AMOUNT) {
+        return NextResponse.json(
+          { error: `Maximum trade amount is ${MAX_TRADE_AMOUNT.toLocaleString()} points` },
+          { status: 400 }
+        )
+      }
+      
+      if (tradeAmount > cashBalance) {
+        return NextResponse.json(
+          { error: `Insufficient idle points. Have ${cashBalance.toLocaleString()}, need ${tradeAmount.toLocaleString()}` },
+          { status: 400 }
+        )
+      }
+
+      if (currentPosition) {
+        return NextResponse.json(
+          { error: `Already have a ${currentPosition.direction} position in ${upperTicker}. Close it first.` },
           { status: 400 }
         )
       }
     }
 
-    if (upperAction === 'COVER') {
-      if (currentPosition !== 'SHORT') {
+    if (upperAction === 'SELL' || upperAction === 'COVER') {
+      // Closing a position
+      if (!currentPosition) {
         return NextResponse.json(
-          { error: `Cannot COVER ${upperTicker}: no short position. Must SHORT first.` },
+          { error: `No position in ${upperTicker} to close.` },
           { status: 400 }
         )
       }
-    }
-
-    if (upperAction === 'BUY') {
-      if (currentPosition === 'LONG') {
+      
+      if (upperAction === 'SELL' && currentPosition.direction !== 'LONG') {
         return NextResponse.json(
-          { error: `Already LONG ${upperTicker}. SELL first to close, then BUY again.` },
+          { error: `Cannot SELL: position is ${currentPosition.direction}, not LONG` },
           { status: 400 }
         )
       }
-      if (currentPosition === 'SHORT') {
+      
+      if (upperAction === 'COVER' && currentPosition.direction !== 'SHORT') {
         return NextResponse.json(
-          { error: `Currently SHORT ${upperTicker}. COVER first before going LONG.` },
-          { status: 400 }
-        )
-      }
-    }
-
-    if (upperAction === 'SHORT') {
-      if (currentPosition === 'SHORT') {
-        return NextResponse.json(
-          { error: `Already SHORT ${upperTicker}. COVER first to close, then SHORT again.` },
-          { status: 400 }
-        )
-      }
-      if (currentPosition === 'LONG') {
-        return NextResponse.json(
-          { error: `Currently LONG ${upperTicker}. SELL first before going SHORT.` },
+          { error: `Cannot COVER: position is ${currentPosition.direction}, not SHORT` },
           { status: 400 }
         )
       }
@@ -280,7 +232,7 @@ export async function POST(request: NextRequest) {
 
     // Check daily trade limit
     const today = new Date().toISOString().split('T')[0]
-    const { count } = await getSupabaseAdmin()
+    const { count } = await supabase
       .from('trades')
       .select('*', { count: 'exact', head: true })
       .eq('agent_id', agent.id)
@@ -298,12 +250,48 @@ export async function POST(request: NextRequest) {
     const weekId = getWeekId(now)
     const revealDate = getRevealDate(now)
 
-    const { data: trade, error: tradeError } = await getSupabaseAdmin()
+    // Execute the trade
+    let newCashBalance = cashBalance
+    let positionResult: string
+
+    if (upperAction === 'BUY' || upperAction === 'SHORT') {
+      // Open position: deduct from cash
+      newCashBalance = cashBalance - tradeAmount!
+      
+      await supabase.from('positions').insert({
+        agent_id: agent.id,
+        ticker: upperTicker,
+        direction: upperAction === 'BUY' ? 'LONG' : 'SHORT',
+        amount_points: tradeAmount,
+      })
+      
+      positionResult = `Opened ${upperAction === 'BUY' ? 'LONG' : 'SHORT'} ${upperTicker} with ${tradeAmount!.toLocaleString()} points`
+    } else {
+      // Close position: add back to cash
+      const positionAmount = currentPosition!.amount_points
+      newCashBalance = cashBalance + Number(positionAmount)
+      
+      await supabase.from('positions')
+        .delete()
+        .eq('agent_id', agent.id)
+        .eq('ticker', upperTicker)
+      
+      positionResult = `Closed ${currentPosition!.direction} ${upperTicker}, returned ${Number(positionAmount).toLocaleString()} points`
+    }
+
+    // Update agent's cash balance
+    await supabase.from('agents')
+      .update({ cash_balance: newCashBalance })
+      .eq('id', agent.id)
+
+    // Record the trade
+    const { data: trade, error: tradeError } = await supabase
       .from('trades')
       .insert({
         agent_id: agent.id,
         ticker: upperTicker,
         action: upperAction,
+        amount: tradeAmount || (currentPosition?.amount_points),
         week_id: weekId,
         reveal_date: revealDate,
       })
@@ -312,10 +300,13 @@ export async function POST(request: NextRequest) {
 
     if (tradeError) throw tradeError
 
-    // Determine new position after trade
-    const newPosition = (upperAction === 'BUY') ? 'LONG' 
-      : (upperAction === 'SHORT') ? 'SHORT' 
-      : null
+    // Calculate working points (sum of all positions)
+    const { data: positions } = await supabase
+      .from('positions')
+      .select('amount_points')
+      .eq('agent_id', agent.id)
+    
+    const workingPoints = positions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
 
     return NextResponse.json({
       success: true,
@@ -323,11 +314,16 @@ export async function POST(request: NextRequest) {
         id: trade.id,
         ticker: trade.ticker,
         action: trade.action,
+        amount: trade.amount,
         submitted_at: trade.submitted_at,
         reveal_date: trade.reveal_date,
-        week_id: trade.week_id,
       },
-      position: newPosition ? `Now ${newPosition} ${upperTicker}` : `Closed ${upperTicker} position`,
+      result: positionResult,
+      balance: {
+        idle_points: newCashBalance,
+        working_points: workingPoints,
+        total_points: newCashBalance + workingPoints,
+      },
       trades_remaining_today: MAX_TRADES_PER_DAY - (count || 0) - 1,
     })
   } catch (error: any) {
@@ -339,7 +335,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET: List agent's own trades
+// GET: List agent's positions and trades
 export async function GET(request: NextRequest) {
   try {
     const apiKey = request.headers.get('X-API-Key')
@@ -358,19 +354,41 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data: trades, error } = await getSupabaseAdmin()
+    const supabase = getSupabaseAdmin()
+    
+    const { data: agent } = await supabase
+      .from('agents')
+      .select('id, name, points, cash_balance')
+      .eq('id', keyData.agent_id)
+      .single()
+
+    const { data: positions } = await supabase
+      .from('positions')
+      .select('*')
+      .eq('agent_id', keyData.agent_id)
+
+    const { data: trades } = await supabase
       .from('trades')
       .select('*')
       .eq('agent_id', keyData.agent_id)
       .order('submitted_at', { ascending: false })
-      .limit(100)
+      .limit(50)
 
-    if (error) throw error
+    const workingPoints = positions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
+    const idlePoints = agent?.cash_balance || agent?.points || 1000000
 
-    return NextResponse.json({ trades })
+    return NextResponse.json({ 
+      balance: {
+        idle_points: idlePoints,
+        working_points: workingPoints,
+        total_points: idlePoints + workingPoints,
+      },
+      positions: positions || [],
+      trades: trades || [],
+    })
   } catch (error: any) {
     return NextResponse.json(
-      { error: 'Failed to fetch trades', details: error.message },
+      { error: 'Failed to fetch data', details: error.message },
       { status: 500 }
     )
   }
