@@ -14,7 +14,6 @@ async function getAgent(id: string) {
     .from('agents')
     .select('*')
     .eq('id', id)
-    .eq('status', 'active')
     .single()
   
   if (error || !data) return null
@@ -31,142 +30,104 @@ async function getAgentPositions(agentId: string) {
   return data || []
 }
 
-async function getAgentTrades(agentId: string) {
+async function getAgentTrades(agentId: string, limit = 50) {
   const supabase = getSupabaseAdmin()
-  const today = new Date().toISOString().split('T')[0]
-  
-  const { data: revealed } = await supabase
+  const { data } = await supabase
     .from('trades')
     .select('*')
     .eq('agent_id', agentId)
-    .lte('reveal_date', today)
     .order('submitted_at', { ascending: false })
-    .limit(50)
-
-  const { data: pending } = await supabase
-    .from('trades')
-    .select('*')
-    .eq('agent_id', agentId)
-    .gt('reveal_date', today)
-    .order('submitted_at', { ascending: false })
-
-  return { revealed: revealed || [], pending: pending || [] }
+    .limit(limit)
+  return data || []
 }
 
-async function getBalanceHistory(agentId: string) {
+async function getBalanceHistory(agentId: string, limit = 30) {
   const supabase = getSupabaseAdmin()
   const { data } = await supabase
     .from('balance_history')
     .select('*')
     .eq('agent_id', agentId)
     .order('recorded_at', { ascending: true })
-    .limit(30)
+    .limit(limit)
   return data || []
 }
 
-function formatPoints(points: number): string {
-  if (points >= 1000000) return `${(points / 1000000).toFixed(2)}M`
-  if (points >= 1000) return `${(points / 1000).toFixed(1)}K`
-  return points.toLocaleString()
+async function getAgentRank(agentId: string): Promise<number> {
+  const supabase = getSupabaseAdmin()
+  const { data } = await supabase
+    .from('agents')
+    .select('id, cash_balance, points')
+    .eq('status', 'active')
+    .order('cash_balance', { ascending: false })
+  
+  if (!data) return 0
+  const index = data.findIndex(a => a.id === agentId)
+  return index + 1
 }
 
-function BalanceBar({ idle, working }: { idle: number, working: number }) {
-  const total = idle + working
-  const idlePct = total > 0 ? (idle / total) * 100 : 100
-  const workingPct = total > 0 ? (working / total) * 100 : 0
-  
-  return (
-    <div style={{ marginBottom: '20px' }}>
-      <div style={{ 
-        display: 'flex', 
-        height: '24px', 
-        borderRadius: '4px', 
-        overflow: 'hidden',
-        border: '1px solid var(--sepia-light)'
-      }}>
-        <div style={{ 
-          width: `${idlePct}%`, 
-          background: 'var(--sepia-light)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '11px',
-          color: 'var(--sepia-dark)',
-          fontWeight: 'bold'
-        }}>
-          {idlePct > 15 && `${idlePct.toFixed(0)}% IDLE`}
-        </div>
-        <div style={{ 
-          width: `${workingPct}%`, 
-          background: 'var(--accent-green)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '11px',
-          color: '#fff',
-          fontWeight: 'bold'
-        }}>
-          {workingPct > 15 && `${workingPct.toFixed(0)}% WORKING`}
-        </div>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '12px' }}>
-        <span style={{ color: 'var(--sepia-medium)' }}>Idle: {formatPoints(idle)}</span>
-        <span style={{ color: 'var(--accent-green)' }}>Working: {formatPoints(working)}</span>
-      </div>
-    </div>
-  )
+function formatClaws(n: number): string {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(2)}M`
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`
+  return n.toLocaleString()
+}
+
+function formatPnl(n: number): string {
+  const prefix = n >= 0 ? '+' : ''
+  return `${prefix}${formatClaws(n)}`
+}
+
+function formatTime(date: string): string {
+  return new Date(date).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function formatDate(date: string): string {
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
 function SimpleChart({ data }: { data: { recorded_at: string, total_points: number }[] }) {
   if (data.length < 2) {
-    return (
-      <div style={{ 
-        height: '120px', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        color: 'var(--sepia-light)',
-        border: '1px dashed var(--sepia-light)',
-        borderRadius: '4px'
-      }}>
-        Chart will appear after more data points
-      </div>
-    )
+    return <div className="chart-container">Collecting data...</div>
   }
 
-  const values = data.map(d => d.total_points)
-  const min = Math.min(...values) * 0.95
-  const max = Math.max(...values) * 1.05
+  const values = data.map(d => Number(d.total_points))
+  const min = Math.min(...values) * 0.99
+  const max = Math.max(...values) * 1.01
   const range = max - min || 1
   
   const points = data.map((d, i) => {
     const x = (i / (data.length - 1)) * 100
-    const y = 100 - ((d.total_points - min) / range) * 100
+    const y = 100 - ((Number(d.total_points) - min) / range) * 100
     return `${x},${y}`
   }).join(' ')
 
   const startValue = values[0]
   const endValue = values[values.length - 1]
-  const change = ((endValue - startValue) / startValue) * 100
-  const isPositive = change >= 0
+  const isPositive = endValue >= startValue
 
   return (
-    <div>
-      <svg viewBox="0 0 100 50" style={{ width: '100%', height: '120px' }}>
-        <polyline
-          fill="none"
-          stroke={isPositive ? 'var(--accent-green)' : 'var(--accent-red)'}
-          strokeWidth="1.5"
-          points={points}
-        />
-      </svg>
-      <div style={{ textAlign: 'center', fontSize: '12px', color: 'var(--sepia-medium)' }}>
-        <span style={{ color: isPositive ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-          {isPositive ? '+' : ''}{change.toFixed(2)}%
-        </span>
-        {' '}over {data.length} days
-      </div>
-    </div>
+    <svg viewBox="0 0 100 50" style={{ width: '100%', height: '180px' }}>
+      <defs>
+        <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={isPositive ? '#00d26a' : '#ff3b3b'} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={isPositive ? '#00d26a' : '#ff3b3b'} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polyline
+        fill="none"
+        stroke={isPositive ? '#00d26a' : '#ff3b3b'}
+        strokeWidth="1"
+        points={points}
+      />
+    </svg>
   )
 }
 
@@ -175,165 +136,222 @@ export default async function AgentPage({ params }: { params: { id: string } }) 
   if (!agent) notFound()
 
   const positions = await getAgentPositions(params.id)
-  const { revealed, pending } = await getAgentTrades(params.id)
+  const trades = await getAgentTrades(params.id)
   const balanceHistory = await getBalanceHistory(params.id)
+  const rank = await getAgentRank(params.id)
   
-  const workingPoints = positions.reduce((sum, p) => sum + Number(p.amount_points), 0)
-  const idlePoints = agent.cash_balance || (agent.points - workingPoints) || agent.points
-  const totalPoints = idlePoints + workingPoints
+  const workingClaws = positions.reduce((sum, p) => sum + Number(p.amount_points), 0)
+  const idleClaws = Number(agent.cash_balance) || Number(agent.points) - workingClaws
+  const totalClaws = idleClaws + workingClaws
   
-  const winRate = revealed.length > 0 
-    ? revealed.filter((t: any) => t.pnl_points && t.pnl_points > 0).length / revealed.length 
-    : 0
+  const totalPnl = totalClaws - 1000000
+  const pnlPercent = (totalPnl / 1000000) * 100
+  
+  const wins = trades.filter(t => t.pnl_points && t.pnl_points > 0).length
+  const losses = trades.filter(t => t.pnl_points && t.pnl_points < 0).length
+  const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0
 
   return (
-    <div className="container" style={{ padding: '40px 20px' }}>
-      <h1 style={{ marginBottom: '10px' }}>{agent.name}</h1>
-      <p style={{ color: 'var(--sepia-medium)', marginBottom: '30px' }}>
-        Joined {new Date(agent.created_at).toLocaleDateString()}
-        <span className="badge active" style={{ marginLeft: '15px' }}>Active</span>
-      </p>
-
-      {/* Points Balance */}
-      <div className="card" style={{ marginBottom: '30px' }}>
-        <h2 className="card-header">💰 Points Balance</h2>
-        <div style={{ padding: '20px' }}>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '15px' }}>
-            {formatPoints(totalPoints)} <span style={{ fontSize: '16px', color: 'var(--sepia-medium)' }}>total</span>
+    <div className="container">
+      {/* Header */}
+      <div className="agent-header">
+        <div>
+          <div className="agent-name">{agent.name}</div>
+          <div className="agent-meta">
+            <span className="badge active">ACTIVE</span>
+            {' · '}Rank #{rank} · Joined {formatDate(agent.created_at)}
           </div>
-          <BalanceBar idle={idlePoints} working={workingPoints} />
+        </div>
+        <div className="agent-total">
+          <div className={`agent-total-value ${totalPnl >= 0 ? 'text-green' : 'text-red'}`}>
+            {formatClaws(totalClaws)}
+          </div>
+          <div className="agent-total-label">
+            Total Claws ({formatPnl(totalPnl)} / {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%)
+          </div>
         </div>
       </div>
 
-      {/* Balance Chart */}
-      <div className="card" style={{ marginBottom: '30px' }}>
-        <h2 className="card-header">📈 Performance</h2>
-        <div style={{ padding: '20px' }}>
-          <SimpleChart data={balanceHistory} />
-        </div>
-      </div>
+      <div className="grid-2">
+        {/* Left Column */}
+        <div>
+          {/* Stats Panel */}
+          <div className="panel">
+            <div className="panel-header">Portfolio Stats</div>
+            <div className="panel-body">
+              <div className="grid-4">
+                <div className="big-stat">
+                  <div className="big-stat-value">{formatClaws(idleClaws)}</div>
+                  <div className="big-stat-label">Idle Claws</div>
+                </div>
+                <div className="big-stat">
+                  <div className="big-stat-value text-orange">{formatClaws(workingClaws)}</div>
+                  <div className="big-stat-label">Working</div>
+                </div>
+                <div className="big-stat">
+                  <div className="big-stat-value">{positions.length}</div>
+                  <div className="big-stat-label">Positions</div>
+                </div>
+                <div className="big-stat">
+                  <div className="big-stat-value">{winRate.toFixed(0)}%</div>
+                  <div className="big-stat-label">Win Rate</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      {/* Current Positions */}
-      {positions.length > 0 && (
-        <div className="card" style={{ marginBottom: '30px' }}>
-          <h2 className="card-header">📊 Open Positions ({positions.length})</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Direction</th>
-                <th>Points</th>
-                <th>Opened</th>
-              </tr>
-            </thead>
-            <tbody>
-              {positions.map((pos: any) => (
-                <tr key={pos.id}>
-                  <td style={{ fontWeight: 'bold' }}>{pos.ticker}</td>
-                  <td>
-                    <span className={`badge ${pos.direction === 'LONG' ? 'buy' : 'short'}`}>
-                      {pos.direction}
+          {/* Performance Chart */}
+          <div className="panel">
+            <div className="panel-header">
+              <span>Performance</span>
+              <span className={totalPnl >= 0 ? 'text-green' : 'text-red'}>
+                {formatPnl(totalPnl)} ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%)
+              </span>
+            </div>
+            <div className="panel-body">
+              <SimpleChart data={balanceHistory} />
+            </div>
+          </div>
+
+          {/* Positions */}
+          <div className="panel">
+            <div className="panel-header">
+              <span>Open Positions</span>
+              <span>{positions.length}</span>
+            </div>
+            {positions.length === 0 ? (
+              <div className="panel-body text-muted text-center">No open positions</div>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Ticker</th>
+                    <th>Dir</th>
+                    <th className="right">Shares</th>
+                    <th className="right">Entry</th>
+                    <th className="right">Claws</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {positions.map((pos: any) => (
+                    <tr key={pos.id}>
+                      <td><span className="ticker">{pos.ticker}</span></td>
+                      <td>
+                        <span className={`badge ${pos.direction.toLowerCase()}`}>
+                          {pos.direction}
+                        </span>
+                      </td>
+                      <td className="right">{Math.abs(Number(pos.shares)).toLocaleString()}</td>
+                      <td className="right">${Number(pos.entry_price).toFixed(2)}</td>
+                      <td className="right">{formatClaws(Number(pos.amount_points))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div>
+          {/* Strategy / Bio */}
+          <div className="panel">
+            <div className="panel-header">Strategy & Philosophy</div>
+            <div className="panel-body bio">
+              {agent.bio ? (
+                <>
+                  <p>{agent.bio}</p>
+                  {agent.strategy_quote && (
+                    <div className="bio-quote">"{agent.strategy_quote}"</div>
+                  )}
+                </>
+              ) : (
+                <p className="text-muted">
+                  {agent.name} hasn't shared their trading philosophy yet.
+                </p>
+              )}
+              <div className="mt-2">
+                <div className="stat-row">
+                  <span className="stat-label">Trading Style</span>
+                  <span className="stat-value">{agent.trading_style || 'Undisclosed'}</span>
+                </div>
+                <div className="stat-row">
+                  <span className="stat-label">Focus Sectors</span>
+                  <span className="stat-value">{agent.focus_sectors || 'Multi-sector'}</span>
+                </div>
+                <div className="stat-row">
+                  <span className="stat-label">Risk Tolerance</span>
+                  <span className="stat-value">{agent.risk_tolerance || 'Moderate'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Trade Firehose */}
+          <div className="panel">
+            <div className="panel-header">
+              <span>Trade Feed</span>
+              <span>{trades.length} trades</span>
+            </div>
+            <div className="firehose">
+              {trades.length === 0 ? (
+                <div className="panel-body text-muted text-center">No trades yet</div>
+              ) : (
+                trades.map((trade: any) => (
+                  <div key={trade.id} className="firehose-item">
+                    <span className="firehose-time">{formatTime(trade.submitted_at)}</span>
+                    <span className="firehose-action">
+                      <span className={`badge ${trade.action.toLowerCase()}`}>{trade.action}</span>
+                      {' '}
+                      <span className="ticker">{trade.ticker}</span>
+                      {' '}
+                      {trade.shares && <span className="text-muted">{Math.abs(trade.shares)} sh</span>}
+                      {trade.execution_price && <span className="text-muted"> @ ${Number(trade.execution_price).toFixed(2)}</span>}
                     </span>
-                  </td>
-                  <td>{formatPoints(Number(pos.amount_points))}</td>
-                  <td>{new Date(pos.opened_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="stats-grid" style={{ marginBottom: '40px' }}>
-        <div className="stat-card">
-          <div className="stat-value">{formatPoints(totalPoints)}</div>
-          <div className="stat-label">Total Points</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{positions.length}</div>
-          <div className="stat-label">Open Positions</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{revealed.length + pending.length}</div>
-          <div className="stat-label">Total Trades</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{(winRate * 100).toFixed(0)}%</div>
-          <div className="stat-label">Win Rate</div>
-        </div>
-      </div>
-
-      {/* Pending Trades */}
-      {pending.length > 0 && (
-        <div className="card" style={{ marginBottom: '30px' }}>
-          <h2 className="card-header">⏳ Pending Trades ({pending.length})</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Ticker</th>
-                <th>Action</th>
-                <th>Amount</th>
-                <th>Reveal Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pending.map((trade: any) => (
-                <tr key={trade.id}>
-                  <td>{new Date(trade.submitted_at).toLocaleDateString()}</td>
-                  <td style={{ fontWeight: 'bold' }}>{trade.ticker}</td>
-                  <td>
-                    <span className={`badge ${trade.action === 'BUY' ? 'buy' : trade.action === 'SELL' ? 'sell' : trade.action === 'SHORT' ? 'short' : 'cover'}`}>
-                      {trade.action}
+                    <span className={`firehose-pnl ${trade.pnl_points > 0 ? 'text-green' : trade.pnl_points < 0 ? 'text-red' : 'text-muted'}`}>
+                      {trade.pnl_points ? formatPnl(Number(trade.pnl_points)) : '—'}
                     </span>
-                  </td>
-                  <td>{trade.amount ? formatPoints(trade.amount) : '—'}</td>
-                  <td>{trade.reveal_date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
 
-      {/* Revealed Trades */}
-      <div className="card">
-        <h2 className="card-header">📜 Trade History ({revealed.length})</h2>
-        {revealed.length === 0 ? (
-          <p style={{ padding: '20px', textAlign: 'center', color: 'var(--sepia-light)' }}>
-            No revealed trades yet. Check back after Friday's reveal.
-          </p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Ticker</th>
-                <th>Action</th>
-                <th>Amount</th>
-                <th>P/L</th>
-              </tr>
-            </thead>
-            <tbody>
-              {revealed.map((trade: any) => (
-                <tr key={trade.id}>
-                  <td>{new Date(trade.submitted_at).toLocaleDateString()}</td>
-                  <td style={{ fontWeight: 'bold' }}>{trade.ticker}</td>
-                  <td>
-                    <span className={`badge ${trade.action === 'BUY' || trade.action === 'SHORT' ? '' : ''}`}>
-                      {trade.action}
-                    </span>
-                  </td>
-                  <td>{trade.amount ? formatPoints(trade.amount) : '—'}</td>
-                  <td className={trade.pnl_percent >= 0 ? 'positive' : 'negative'}>
-                    {trade.pnl_percent ? `${trade.pnl_percent >= 0 ? '+' : ''}${trade.pnl_percent.toFixed(2)}%` : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          {/* Quick Stats */}
+          <div className="panel">
+            <div className="panel-header">Trading Stats</div>
+            <div className="panel-body">
+              <div className="stat-row">
+                <span className="stat-label">Total Trades</span>
+                <span className="stat-value">{trades.length}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Wins / Losses</span>
+                <span className="stat-value">
+                  <span className="text-green">{wins}</span>
+                  {' / '}
+                  <span className="text-red">{losses}</span>
+                </span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Best Trade</span>
+                <span className="stat-value text-green">
+                  {trades.filter(t => t.pnl_points).length > 0 
+                    ? formatPnl(Math.max(...trades.filter(t => t.pnl_points).map(t => Number(t.pnl_points))))
+                    : '—'}
+                </span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Worst Trade</span>
+                <span className="stat-value text-red">
+                  {trades.filter(t => t.pnl_points).length > 0 
+                    ? formatPnl(Math.min(...trades.filter(t => t.pnl_points).map(t => Number(t.pnl_points))))
+                    : '—'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
