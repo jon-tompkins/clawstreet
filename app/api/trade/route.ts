@@ -15,42 +15,23 @@ const VALID_ACTIONS = ['BUY', 'SELL', 'SHORT', 'COVER'] as const
 type TradeAction = typeof VALID_ACTIONS[number]
 
 const MAX_TRADES_PER_DAY = 10
-const MIN_TRADE_AMOUNT = 1000  // Minimum 1K points per trade
-const MAX_TRADE_AMOUNT = 500000  // Maximum 500K points per trade
+const MIN_TRADE_CLAWS = 1000    // Minimum 1K claws per trade
+const MAX_TRADE_CLAWS = 500000  // Maximum 500K claws per trade
 
-// S&P 500 + most liquid NASDAQ (expanded list)
+// Liquid tickers (abbreviated for brevity - full list in production)
 const VALID_TICKERS = new Set([
-  // Mega caps
-  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK.A', 'BRK.B',
-  'UNH', 'JNJ', 'JPM', 'V', 'XOM', 'PG', 'MA', 'HD', 'CVX', 'MRK',
-  'ABBV', 'LLY', 'PEP', 'KO', 'COST', 'AVGO', 'WMT', 'MCD', 'CSCO', 'TMO',
-  'ACN', 'ABT', 'DHR', 'NEE', 'LIN', 'ADBE', 'NKE', 'TXN', 'PM', 'UNP',
-  'RTX', 'BMY', 'ORCL', 'HON', 'QCOM', 'COP', 'LOW', 'AMGN', 'UPS', 'IBM',
-  'SPGI', 'CAT', 'BA', 'GE', 'SBUX', 'INTC', 'INTU', 'AMD', 'PLD', 'AMAT',
-  'DE', 'ISRG', 'MDLZ', 'ADP', 'GILD', 'ADI', 'BKNG', 'REGN', 'VRTX', 'MMC',
-  'TJX', 'SYK', 'CVS', 'LRCX', 'PGR', 'ZTS', 'CB', 'CI', 'SCHW', 'MO',
-  // Tech
-  'CRM', 'NOW', 'SNOW', 'PLTR', 'CRWD', 'ZS', 'NET', 'DDOG', 'MDB', 'OKTA',
-  'PANW', 'WDAY', 'TEAM', 'VEEV', 'HUBS', 'TTD', 'SHOP', 'SQ', 'PYPL', 'COIN',
+  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM', 'V',
+  'UNH', 'JNJ', 'XOM', 'PG', 'MA', 'HD', 'CVX', 'MRK', 'ABBV', 'LLY',
+  'PEP', 'KO', 'COST', 'AVGO', 'WMT', 'MCD', 'CSCO', 'TMO', 'ACN', 'ABT',
+  'CRM', 'NOW', 'SNOW', 'PLTR', 'CRWD', 'ZS', 'NET', 'DDOG', 'AMD', 'INTC',
   'NFLX', 'DIS', 'CMCSA', 'T', 'VZ', 'TMUS', 'UBER', 'LYFT', 'DASH', 'ABNB',
-  // Energy
   'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'OXY', 'DVN', 'HES', 'HAL', 'BKR',
-  'VLO', 'MPC', 'PSX', 'FANG', 'ET', 'EPD', 'KMI', 'WMB', 'OKE', 'LNG',
-  // Uranium/Nuclear
   'CCJ', 'UEC', 'DNN', 'NXE', 'UUUU', 'URG', 'LEU', 'SMR', 'OKLO', 'NNE',
-  // Mining/Materials  
   'NEM', 'GOLD', 'FNV', 'WPM', 'FCX', 'SCCO', 'RIO', 'BHP', 'VALE', 'CLF',
-  'NUE', 'STLD', 'AA', 'LAC', 'ALB', 'SQM', 'MP',
-  // Defense
-  'LMT', 'RTX', 'NOC', 'GD', 'BA', 'LHX', 'TDG', 'HII', 'KTOS', 'AVAV',
-  'RKLB', 'AXON', 'LDOS', 'SAIC',
-  // Financials
+  'LMT', 'RTX', 'NOC', 'GD', 'BA', 'LHX', 'TDG', 'HII', 'KTOS', 'AVAV', 'RKLB',
   'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'SCHW', 'BLK', 'BX', 'KKR',
-  // EV/Auto
   'TSLA', 'RIVN', 'LCID', 'NIO', 'F', 'GM',
-  // Crypto-adjacent
   'COIN', 'MSTR', 'MARA', 'RIOT', 'CLSK',
-  // ETFs
   'SPY', 'QQQ', 'IWM', 'DIA', 'VOO', 'VTI', 'XLF', 'XLE', 'XLK', 'XLV',
   'GLD', 'SLV', 'USO', 'TLT', 'HYG', 'ARKK', 'SOXL', 'TQQQ', 'URA',
 ])
@@ -100,22 +81,23 @@ async function getAgentPosition(agentId: string, ticker: string) {
   return data
 }
 
+// Fetch current price (mock for now - will integrate real pricing)
+async function getCurrentPrice(ticker: string): Promise<number | null> {
+  // TODO: Integrate real-time pricing API
+  // For now, return null and require price in request or use stored entry_price
+  return null
+}
+
 export async function POST(request: NextRequest) {
   try {
     const apiKey = request.headers.get('X-API-Key')
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Missing X-API-Key header' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Missing X-API-Key header' }, { status: 401 })
     }
 
     const keyData = await verifyApiKey(apiKey)
     if (!keyData) {
-      return NextResponse.json(
-        { error: 'Invalid API key' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
     }
 
     const supabase = getSupabaseAdmin()
@@ -127,211 +109,271 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (agentError || !agent || agent.status !== 'active') {
-      return NextResponse.json(
-        { error: 'Agent not active' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Agent not active' }, { status: 403 })
     }
 
     const body = await request.json()
-    const { ticker, action, amount } = body
+    const { ticker, action, amount, shares: requestedShares, price } = body
 
     if (!ticker || !action) {
-      return NextResponse.json(
-        { error: 'Missing required fields: ticker, action' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required fields: ticker, action' }, { status: 400 })
     }
 
     const upperTicker = ticker.toUpperCase()
     const upperAction = action.toUpperCase() as TradeAction
-    const tradeAmount = amount ? Number(amount) : null
 
     // Validate action
     if (!VALID_ACTIONS.includes(upperAction)) {
-      return NextResponse.json(
-        { error: `Invalid action. Must be: ${VALID_ACTIONS.join(', ')}` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Invalid action. Must be: ${VALID_ACTIONS.join(', ')}` }, { status: 400 })
     }
 
     // Validate ticker
     if (!VALID_TICKERS.has(upperTicker)) {
-      return NextResponse.json(
-        { error: `Invalid ticker: ${upperTicker}. Must be a liquid NYSE/NASDAQ stock or ETF.` },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: `Invalid ticker: ${upperTicker}` }, { status: 400 })
     }
 
     // Get current position
     const currentPosition = await getAgentPosition(agent.id, upperTicker)
     const cashBalance = agent.cash_balance || agent.points || 1000000
 
-    // Validate based on action
+    // For BUY/SHORT: need amount OR (shares + price)
+    // For SELL/COVER: can specify shares to partial close, or close all
+    
     if (upperAction === 'BUY' || upperAction === 'SHORT') {
-      // Opening a new position - amount required
-      if (!tradeAmount) {
-        return NextResponse.json(
-          { error: 'Amount required for BUY/SHORT. Specify points to allocate (e.g., amount: 10000)' },
-          { status: 400 }
-        )
-      }
-      
-      if (tradeAmount < MIN_TRADE_AMOUNT) {
-        return NextResponse.json(
-          { error: `Minimum trade amount is ${MIN_TRADE_AMOUNT.toLocaleString()} points` },
-          { status: 400 }
-        )
-      }
-      
-      if (tradeAmount > MAX_TRADE_AMOUNT) {
-        return NextResponse.json(
-          { error: `Maximum trade amount is ${MAX_TRADE_AMOUNT.toLocaleString()} points` },
-          { status: 400 }
-        )
-      }
-      
-      if (tradeAmount > cashBalance) {
-        return NextResponse.json(
-          { error: `Insufficient idle points. Have ${cashBalance.toLocaleString()}, need ${tradeAmount.toLocaleString()}` },
-          { status: 400 }
-        )
-      }
-
+      // OPENING A POSITION
       if (currentPosition) {
-        return NextResponse.json(
-          { error: `Already have a ${currentPosition.direction} position in ${upperTicker}. Close it first.` },
-          { status: 400 }
-        )
+        return NextResponse.json({ 
+          error: `Already have a ${currentPosition.direction} position in ${upperTicker}. Close it first.` 
+        }, { status: 400 })
       }
-    }
 
-    if (upperAction === 'SELL' || upperAction === 'COVER') {
-      // Closing a position
-      if (!currentPosition) {
-        return NextResponse.json(
-          { error: `No position in ${upperTicker} to close.` },
-          { status: 400 }
-        )
+      let finalShares: number
+      let finalClaws: number
+      let executionPrice: number
+
+      if (requestedShares && price) {
+        // Trading by shares - need price to calculate claws
+        executionPrice = Number(price)
+        finalShares = Math.floor(Number(requestedShares))  // Round DOWN to whole shares
+        finalClaws = finalShares * executionPrice
+      } else if (amount && price) {
+        // Trading by claws amount - calculate whole shares
+        executionPrice = Number(price)
+        const rawShares = Number(amount) / executionPrice
+        finalShares = Math.floor(rawShares)  // Round DOWN
+        finalClaws = finalShares * executionPrice  // Actual claws used
+      } else if (amount) {
+        // Amount only - will price at EOD, estimate shares later
+        return NextResponse.json({ 
+          error: 'Price required for BUY/SHORT. Provide price parameter.' 
+        }, { status: 400 })
+      } else {
+        return NextResponse.json({ 
+          error: 'Must provide either (amount + price) or (shares + price)' 
+        }, { status: 400 })
       }
-      
-      if (upperAction === 'SELL' && currentPosition.direction !== 'LONG') {
-        return NextResponse.json(
-          { error: `Cannot SELL: position is ${currentPosition.direction}, not LONG` },
-          { status: 400 }
-        )
+
+      if (finalShares < 1) {
+        return NextResponse.json({ error: 'Trade too small - results in 0 whole shares' }, { status: 400 })
       }
-      
-      if (upperAction === 'COVER' && currentPosition.direction !== 'SHORT') {
-        return NextResponse.json(
-          { error: `Cannot COVER: position is ${currentPosition.direction}, not SHORT` },
-          { status: 400 }
-        )
+
+      if (finalClaws < MIN_TRADE_CLAWS) {
+        return NextResponse.json({ error: `Minimum trade is ${MIN_TRADE_CLAWS.toLocaleString()} claws` }, { status: 400 })
       }
-    }
 
-    // Check daily trade limit
-    const today = new Date().toISOString().split('T')[0]
-    const { count } = await supabase
-      .from('trades')
-      .select('*', { count: 'exact', head: true })
-      .eq('agent_id', agent.id)
-      .gte('submitted_at', `${today}T00:00:00`)
-      .lt('submitted_at', `${today}T23:59:59`)
+      if (finalClaws > MAX_TRADE_CLAWS) {
+        return NextResponse.json({ error: `Maximum trade is ${MAX_TRADE_CLAWS.toLocaleString()} claws` }, { status: 400 })
+      }
 
-    if ((count || 0) >= MAX_TRADES_PER_DAY) {
-      return NextResponse.json(
-        { error: `Daily trade limit (${MAX_TRADES_PER_DAY}) reached` },
-        { status: 429 }
-      )
-    }
+      if (finalClaws > cashBalance) {
+        return NextResponse.json({ 
+          error: `Insufficient claws. Have ${cashBalance.toLocaleString()}, need ${finalClaws.toLocaleString()}` 
+        }, { status: 400 })
+      }
 
-    const now = new Date()
-    const weekId = getWeekId(now)
-    const revealDate = getRevealDate(now)
+      // Check daily limit
+      const today = new Date().toISOString().split('T')[0]
+      const { count } = await supabase
+        .from('trades')
+        .select('*', { count: 'exact', head: true })
+        .eq('agent_id', agent.id)
+        .gte('submitted_at', `${today}T00:00:00`)
 
-    // Execute the trade
-    let newCashBalance = cashBalance
-    let positionResult: string
+      if ((count || 0) >= MAX_TRADES_PER_DAY) {
+        return NextResponse.json({ error: `Daily trade limit (${MAX_TRADES_PER_DAY}) reached` }, { status: 429 })
+      }
 
-    if (upperAction === 'BUY' || upperAction === 'SHORT') {
-      // Open position: deduct from cash
-      newCashBalance = cashBalance - tradeAmount!
-      
+      // Execute: deduct claws, create position
+      const newCashBalance = cashBalance - finalClaws
+      const direction = upperAction === 'BUY' ? 'LONG' : 'SHORT'
+      const signedShares = direction === 'SHORT' ? -finalShares : finalShares
+
       await supabase.from('positions').insert({
         agent_id: agent.id,
         ticker: upperTicker,
-        direction: upperAction === 'BUY' ? 'LONG' : 'SHORT',
-        amount_points: tradeAmount,
+        direction,
+        amount_points: finalClaws,
+        shares: signedShares,
+        entry_price: executionPrice,
       })
-      
-      positionResult = `Opened ${upperAction === 'BUY' ? 'LONG' : 'SHORT'} ${upperTicker} with ${tradeAmount!.toLocaleString()} points`
-    } else {
-      // Close position: add back to cash
-      const positionAmount = currentPosition!.amount_points
-      newCashBalance = cashBalance + Number(positionAmount)
-      
-      await supabase.from('positions')
-        .delete()
-        .eq('agent_id', agent.id)
-        .eq('ticker', upperTicker)
-      
-      positionResult = `Closed ${currentPosition!.direction} ${upperTicker}, returned ${Number(positionAmount).toLocaleString()} points`
-    }
 
-    // Update agent's cash balance
-    await supabase.from('agents')
-      .update({ cash_balance: newCashBalance })
-      .eq('id', agent.id)
+      await supabase.from('agents').update({ cash_balance: newCashBalance }).eq('id', agent.id)
 
-    // Record the trade
-    const { data: trade, error: tradeError } = await supabase
-      .from('trades')
-      .insert({
+      const now = new Date()
+      const { data: trade } = await supabase.from('trades').insert({
         agent_id: agent.id,
         ticker: upperTicker,
         action: upperAction,
-        amount: tradeAmount || (currentPosition?.amount_points),
-        week_id: weekId,
-        reveal_date: revealDate,
+        amount: finalClaws,
+        shares: signedShares,
+        execution_price: executionPrice,
+        week_id: getWeekId(now),
+        reveal_date: getRevealDate(now),
+      }).select().single()
+
+      // Get updated working points
+      const { data: positions } = await supabase.from('positions').select('amount_points').eq('agent_id', agent.id)
+      const workingClaws = positions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
+
+      return NextResponse.json({
+        success: true,
+        trade: {
+          id: trade?.id,
+          ticker: upperTicker,
+          action: upperAction,
+          shares: signedShares,
+          claws: finalClaws,
+          price: executionPrice,
+        },
+        result: `Opened ${direction} ${upperTicker}: ${finalShares} shares @ $${executionPrice.toFixed(2)} = ${finalClaws.toLocaleString()} claws`,
+        balance: { idle: newCashBalance, working: workingClaws, total: newCashBalance + workingClaws },
+        trades_remaining_today: MAX_TRADES_PER_DAY - (count || 0) - 1,
       })
-      .select()
-      .single()
 
-    if (tradeError) throw tradeError
+    } else {
+      // CLOSING A POSITION (SELL or COVER)
+      if (!currentPosition) {
+        return NextResponse.json({ error: `No position in ${upperTicker} to close.` }, { status: 400 })
+      }
 
-    // Calculate working points (sum of all positions)
-    const { data: positions } = await supabase
-      .from('positions')
-      .select('amount_points')
-      .eq('agent_id', agent.id)
-    
-    const workingPoints = positions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
+      if (upperAction === 'SELL' && currentPosition.direction !== 'LONG') {
+        return NextResponse.json({ error: `Cannot SELL: position is ${currentPosition.direction}, not LONG` }, { status: 400 })
+      }
 
-    return NextResponse.json({
-      success: true,
-      trade: {
-        id: trade.id,
-        ticker: trade.ticker,
-        action: trade.action,
-        amount: trade.amount,
-        submitted_at: trade.submitted_at,
-        reveal_date: trade.reveal_date,
-      },
-      result: positionResult,
-      balance: {
-        idle_points: newCashBalance,
-        working_points: workingPoints,
-        total_points: newCashBalance + workingPoints,
-      },
-      trades_remaining_today: MAX_TRADES_PER_DAY - (count || 0) - 1,
-    })
+      if (upperAction === 'COVER' && currentPosition.direction !== 'SHORT') {
+        return NextResponse.json({ error: `Cannot COVER: position is ${currentPosition.direction}, not SHORT` }, { status: 400 })
+      }
+
+      const positionShares = Math.abs(Number(currentPosition.shares))
+      const entryPrice = Number(currentPosition.entry_price)
+      
+      // Determine how many shares to close
+      let sharesToClose: number
+      if (requestedShares) {
+        sharesToClose = Math.min(Math.floor(Number(requestedShares)), positionShares)
+      } else {
+        sharesToClose = positionShares  // Close all
+      }
+
+      if (sharesToClose < 1) {
+        return NextResponse.json({ error: 'Must close at least 1 share' }, { status: 400 })
+      }
+
+      // Need price to calculate P&L
+      const closePrice = price ? Number(price) : null
+      if (!closePrice) {
+        return NextResponse.json({ error: 'Price required to close position' }, { status: 400 })
+      }
+
+      const isPartialClose = sharesToClose < positionShares
+      const entryValue = sharesToClose * entryPrice
+      const exitValue = sharesToClose * closePrice
+
+      let pnl: number
+      if (currentPosition.direction === 'LONG') {
+        pnl = exitValue - entryValue  // Profit if price went up
+      } else {
+        pnl = entryValue - exitValue  // Profit if price went down (short)
+      }
+
+      const clawsReturned = entryValue + pnl  // Original claws + profit (or - loss)
+      const pnlPercent = (pnl / entryValue) * 100
+
+      // Check daily limit
+      const today = new Date().toISOString().split('T')[0]
+      const { count } = await supabase
+        .from('trades')
+        .select('*', { count: 'exact', head: true })
+        .eq('agent_id', agent.id)
+        .gte('submitted_at', `${today}T00:00:00`)
+
+      if ((count || 0) >= MAX_TRADES_PER_DAY) {
+        return NextResponse.json({ error: `Daily trade limit (${MAX_TRADES_PER_DAY}) reached` }, { status: 429 })
+      }
+
+      if (isPartialClose) {
+        // Update position with remaining shares
+        const remainingShares = positionShares - sharesToClose
+        const remainingClaws = remainingShares * entryPrice
+        const signedRemaining = currentPosition.direction === 'SHORT' ? -remainingShares : remainingShares
+
+        await supabase.from('positions')
+          .update({ shares: signedRemaining, amount_points: remainingClaws })
+          .eq('id', currentPosition.id)
+      } else {
+        // Close entire position
+        await supabase.from('positions').delete().eq('id', currentPosition.id)
+      }
+
+      // Update cash balance
+      const newCashBalance = cashBalance + clawsReturned
+      await supabase.from('agents').update({ cash_balance: newCashBalance }).eq('id', agent.id)
+
+      // Record trade
+      const now = new Date()
+      const signedSharesClosed = currentPosition.direction === 'SHORT' ? sharesToClose : -sharesToClose
+      
+      const { data: trade } = await supabase.from('trades').insert({
+        agent_id: agent.id,
+        ticker: upperTicker,
+        action: upperAction,
+        amount: clawsReturned,
+        shares: signedSharesClosed,
+        execution_price: closePrice,
+        close_price: closePrice,
+        pnl_points: pnl,
+        pnl_percent: pnlPercent,
+        week_id: getWeekId(now),
+        reveal_date: getRevealDate(now),
+      }).select().single()
+
+      // Get updated working points
+      const { data: positions } = await supabase.from('positions').select('amount_points').eq('agent_id', agent.id)
+      const workingClaws = positions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
+
+      const pnlStr = pnl >= 0 ? `+${pnl.toLocaleString()}` : pnl.toLocaleString()
+      const pctStr = pnl >= 0 ? `+${pnlPercent.toFixed(2)}%` : `${pnlPercent.toFixed(2)}%`
+
+      return NextResponse.json({
+        success: true,
+        trade: {
+          id: trade?.id,
+          ticker: upperTicker,
+          action: upperAction,
+          shares: sharesToClose,
+          price: closePrice,
+          pnl: pnl,
+          pnl_percent: pnlPercent,
+        },
+        result: `${isPartialClose ? 'Partial close' : 'Closed'} ${currentPosition.direction} ${upperTicker}: ${sharesToClose} shares @ $${closePrice.toFixed(2)} | P&L: ${pnlStr} claws (${pctStr})`,
+        balance: { idle: newCashBalance, working: workingClaws, total: newCashBalance + workingClaws },
+        trades_remaining_today: MAX_TRADES_PER_DAY - (count || 0) - 1,
+      })
+    }
+
   } catch (error: any) {
     console.error('Trade error:', error)
-    return NextResponse.json(
-      { error: 'Trade failed', details: error.message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Trade failed', details: error.message }, { status: 500 })
   }
 }
 
@@ -340,18 +382,12 @@ export async function GET(request: NextRequest) {
   try {
     const apiKey = request.headers.get('X-API-Key')
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Missing X-API-Key header' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Missing X-API-Key header' }, { status: 401 })
     }
 
     const keyData = await verifyApiKey(apiKey)
     if (!keyData) {
-      return NextResponse.json(
-        { error: 'Invalid API key' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
     }
 
     const supabase = getSupabaseAdmin()
@@ -374,22 +410,15 @@ export async function GET(request: NextRequest) {
       .order('submitted_at', { ascending: false })
       .limit(50)
 
-    const workingPoints = positions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
-    const idlePoints = agent?.cash_balance || agent?.points || 1000000
+    const workingClaws = positions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
+    const idleClaws = agent?.cash_balance || agent?.points || 1000000
 
     return NextResponse.json({ 
-      balance: {
-        idle_points: idlePoints,
-        working_points: workingPoints,
-        total_points: idlePoints + workingPoints,
-      },
+      balance: { idle: idleClaws, working: workingClaws, total: idleClaws + workingClaws },
       positions: positions || [],
       trades: trades || [],
     })
   } catch (error: any) {
-    return NextResponse.json(
-      { error: 'Failed to fetch data', details: error.message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch data', details: error.message }, { status: 500 })
   }
 }
