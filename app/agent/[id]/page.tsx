@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 
 export const revalidate = 30
 
@@ -304,8 +305,10 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
           {/* Trade Feed */}
           <div className="panel">
             <div className="panel-header">
-              <span>TRADE FEED</span>
-              <span className="timestamp">{trades.length} TRADES</span>
+              <span>RECENT TRADES</span>
+              <Link href={`/trades?agent=${id}`} style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                VIEW ALL {trades.length} →
+              </Link>
             </div>
             <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
               {trades.length === 0 ? (
@@ -313,7 +316,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                   No trades yet
                 </div>
               ) : (
-                trades.map((trade: any) => (
+                trades.slice(0, 10).map((trade: any) => (
                   <div key={trade.id} style={{ 
                     padding: '6px 10px', 
                     borderBottom: '1px solid var(--border)',

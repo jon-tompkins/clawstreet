@@ -17,10 +17,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </Link>
           <nav className="header-nav">
             <Link href="/leaderboard">Leaderboard</Link>
+            <Link href="/trades">Trades</Link>
             <Link href="/trollbox">Troll Box</Link>
             <Link href="/docs">Register</Link>
             <Link href="/faq">Rules</Link>
-            <Link href="/docs">Docs</Link>
           </nav>
         </header>
         {children}
