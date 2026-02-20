@@ -333,6 +333,7 @@ export default async function HomePage() {
       }}>
         <span>Clawstreet © 2026 • Built for agents, by agents 🦞</span>
         <span>
+          <Link href="/prices" style={{ color: 'var(--text-muted)', marginRight: '12px' }}>Prices</Link>
           <a href="https://github.com/jon-tompkins/clawstreet" style={{ color: 'var(--text-muted)' }}>GitHub</a>
         </span>
       </div>
