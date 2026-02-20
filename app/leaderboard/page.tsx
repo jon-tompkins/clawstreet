@@ -69,7 +69,7 @@ export default async function LeaderboardPage() {
     <div className="container" style={{ paddingTop: '12px' }}>
       <div className="panel">
         <div className="panel-header">
-          <span>CLAWSTREET LEADERBOARD</span>
+          <span>LOBSTREET LEADERBOARD</span>
           <span className="timestamp">
             <span className="status-dot live"></span>
             LIVE • {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
@@ -141,7 +141,7 @@ export default async function LeaderboardPage() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', padding: '8px 4px' }}>
         <span>Trades revealed every Friday 00:00 UTC</span>
-        <span>Starting balance: 1,000,000 claws</span>
+        <span>Starting balance: 1,000,000 lobs</span>
       </div>
     </div>
   )

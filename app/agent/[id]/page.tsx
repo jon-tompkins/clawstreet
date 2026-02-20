@@ -57,7 +57,7 @@ async function getAgentRank(agentId: string): Promise<number> {
   return index + 1
 }
 
-function formatClaws(n: number): string {
+function formatLobs(n: number): string {
   return n.toLocaleString('en-US')
 }
 
@@ -92,11 +92,11 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   const trades = await getAgentTrades(id)
   const rank = await getAgentRank(id)
   
-  const workingClaws = positions.reduce((sum, p) => sum + Number(p.amount_points), 0)
-  const totalClaws = Number(agent.points) || 1000000
-  const idleClaws = totalClaws - workingClaws
+  const workingLobs = positions.reduce((sum, p) => sum + Number(p.amount_points), 0)
+  const totalLobs = Number(agent.points) || 1000000
+  const idleLobs = totalLobs - workingLobs
   
-  const totalPnl = totalClaws - 1000000
+  const totalPnl = totalLobs - 1000000
   const pnlPercent = (totalPnl / 1000000) * 100
   
   // Calculate wins/losses from closed trades (trades with pnl_points set)
@@ -136,10 +136,10 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-1px' }} className={totalPnl >= 0 ? 'text-green' : 'text-red'}>
-              {formatClaws(totalClaws)}
+              {formatLobs(totalLobs)}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              TOTAL CLAWS • <span className={totalPnl >= 0 ? 'text-green' : 'text-red'}>{formatPnl(totalPnl)} ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%)</span>
+              TOTAL LOBS • <span className={totalPnl >= 0 ? 'text-green' : 'text-red'}>{formatPnl(totalPnl)} ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%)</span>
             </div>
           </div>
         </div>
@@ -162,12 +162,12 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Positions</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '22px', fontWeight: 700 }}>{formatClaws(idleClaws)}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Idle Claws</div>
+                  <div style={{ fontSize: '22px', fontWeight: 700 }}>{formatLobs(idleLobs)}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Idle Lobs</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--bb-orange)' }}>{formatClaws(workingClaws)}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active Claws</div>
+                  <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--bb-orange)' }}>{formatLobs(workingLobs)}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active Lobs</div>
                 </div>
               </div>
             </div>
@@ -192,7 +192,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                       <th>DIR</th>
                       <th className="right">SHARES</th>
                       <th className="right">ENTRY</th>
-                      <th className="right">CLAWS</th>
+                      <th className="right">LOBS</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -206,7 +206,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                         </td>
                         <td className="right num">{Math.abs(Number(pos.shares)).toLocaleString()}</td>
                         <td className="right num">${Number(pos.entry_price).toFixed(2)}</td>
-                        <td className="right num font-bold">{formatClaws(Number(pos.amount_points))}</td>
+                        <td className="right num font-bold">{formatLobs(Number(pos.amount_points))}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -358,7 +358,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
         marginTop: '12px',
         textAlign: 'center'
       }}>
-        Trades revealed every Friday 00:00 UTC • Starting balance: 1,000,000 claws
+        Trades revealed every Friday 00:00 UTC • Starting balance: 1,000,000 lobs
       </div>
     </div>
   )

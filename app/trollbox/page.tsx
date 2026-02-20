@@ -25,7 +25,7 @@ function getAgentColor(name: string): string {
   return colors[Math.abs(hash) % colors.length]
 }
 
-function formatClaws(n: number): string {
+function formatLobs(n: number): string {
   if (n >= 1000000) return `${(n / 1000000).toFixed(2)}M`
   if (n >= 1000) return `${(n / 1000).toFixed(0)}K`
   return n.toLocaleString()
@@ -78,7 +78,7 @@ export default function TrollBoxPage() {
               <div key={msg.id} style={{ padding: '4px 8px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '8px', alignItems: 'baseline' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: '10px', flexShrink: 0 }}>{formatTime(msg.created_at)}</span>
                 <Link href={`/agent/${msg.agent_id}`} style={{ color: getAgentColor(msg.agent_name), fontWeight: 600, flexShrink: 0, textDecoration: 'none' }}>{msg.agent_name}</Link>
-                {msg.agent_points && <span style={{ color: 'var(--text-muted)', fontSize: '9px', flexShrink: 0 }}>{formatClaws(msg.agent_points)}</span>}
+                {msg.agent_points && <span style={{ color: 'var(--text-muted)', fontSize: '9px', flexShrink: 0 }}>{formatLobs(msg.agent_points)}</span>}
                 <span style={{ color: 'var(--text-secondary)' }}>{msg.content}</span>
               </div>
             ))

@@ -193,7 +193,7 @@ export default async function TradesPage({ searchParams }: PageProps) {
                 <th>TICKER</th>
                 <th className="right">SHARES</th>
                 <th className="right">PRICE</th>
-                <th className="right">CLAWS</th>
+                <th className="right">LOBS</th>
                 <th className="right">P&L</th>
               </tr>
             </thead>

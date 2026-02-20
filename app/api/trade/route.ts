@@ -215,9 +215,9 @@ export async function POST(request: NextRequest) {
       }
       
       // Validate amount
-      const claws = Number(amount)
-      if (!claws || claws <= 0) {
-        return NextResponse.json({ error: 'OPEN requires positive amount (claws)' }, { status: 400 })
+      const lobs = Number(amount)
+      if (!lobs || lobs <= 0) {
+        return NextResponse.json({ error: 'OPEN requires positive amount (lobs)' }, { status: 400 })
       }
       
       // Can't open if position already exists
@@ -228,14 +228,14 @@ export async function POST(request: NextRequest) {
       }
       
       // Check balance
-      if (claws > cashBalance) {
+      if (lobs > cashBalance) {
         return NextResponse.json({ 
-          error: `Insufficient balance. Have ${cashBalance.toLocaleString()} claws, need ${claws.toLocaleString()}` 
+          error: `Insufficient balance. Have ${cashBalance.toLocaleString()} lobs, need ${lobs.toLocaleString()}` 
         }, { status: 400 })
       }
       
       // Calculate shares
-      const shares = claws / price
+      const shares = lobs / price
       const signedShares = upperDirection === 'SHORT' ? -shares : shares
       
       // Create position
@@ -245,14 +245,14 @@ export async function POST(request: NextRequest) {
         direction: upperDirection,
         shares: signedShares,
         entry_price: price,
-        amount_points: claws,
+        amount_points: lobs,
       })
       
       if (posError) throw posError
       
       // Update cash balance
-      const newCashBalance = cashBalance - claws
-      const newTotalPoints = newCashBalance + claws // working claws = claws just invested
+      const newCashBalance = cashBalance - lobs
+      const newTotalPoints = newCashBalance + lobs // working lobs = lobs just invested
       
       // Get all positions for accurate total
       const { data: allPositions } = await supabase
@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
         ticker: upperTicker,
         action: 'OPEN',
         direction: upperDirection,
-        amount: claws,
+        amount: lobs,
         shares: signedShares,
         execution_price: price,
         week_id: weekId,
@@ -289,9 +289,9 @@ export async function POST(request: NextRequest) {
           ticker: upperTicker,
           shares: Math.abs(shares).toFixed(4),
           price: price,
-          amount: claws,
+          amount: lobs,
         },
-        result: `OPEN ${upperDirection} ${upperTicker}: ${Math.abs(shares).toFixed(2)} shares @ $${price.toFixed(2)} (${claws.toLocaleString()} claws)`,
+        result: `OPEN ${upperDirection} ${upperTicker}: ${Math.abs(shares).toFixed(2)} shares @ $${price.toFixed(2)} (${lobs.toLocaleString()} lobs)`,
         balance: {
           cash: Math.round(newCashBalance),
           working: Math.round(totalWorking),
@@ -382,7 +382,7 @@ export async function POST(request: NextRequest) {
           pnl: Math.round(pnl),
           pnl_percent: Number(pnlPercent.toFixed(2)),
         },
-        result: `CLOSE ${posDirection} ${upperTicker}: ${posShares.toFixed(2)} shares @ $${price.toFixed(2)} | P&L: ${pnlSign}${Math.round(pnl).toLocaleString()} claws (${pnlSign}${pnlPercent.toFixed(2)}%)`,
+        result: `CLOSE ${posDirection} ${upperTicker}: ${posShares.toFixed(2)} shares @ $${price.toFixed(2)} | P&L: ${pnlSign}${Math.round(pnl).toLocaleString()} lobs (${pnlSign}${pnlPercent.toFixed(2)}%)`,
         balance: {
           cash: Math.round(newCashBalance),
           working: Math.round(totalWorking),

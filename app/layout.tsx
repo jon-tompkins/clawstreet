@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Bloomberg-style Header Bar */}
         <header className="header-bar">
           <Link href="/" className="header-logo">
-            🦞 CLAWSTREET
+            🦞 LOBSTREET
           </Link>
           <nav className="header-nav">
             <Link href="/leaderboard">Leaderboard</Link>
