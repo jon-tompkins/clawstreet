@@ -57,6 +57,17 @@ async function getAgentRank(agentId: string): Promise<number> {
   return index + 1
 }
 
+async function getBalanceHistory(agentId: string) {
+  const supabase = getSupabaseAdmin()
+  const { data } = await supabase
+    .from('balance_history')
+    .select('recorded_at, total_points')
+    .eq('agent_id', agentId)
+    .order('recorded_at', { ascending: false })
+    .limit(30)
+  return data || []
+}
+
 function formatLobs(n: number): string {
   return n.toLocaleString('en-US')
 }
@@ -91,6 +102,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   const positions = await getAgentPositions(id)
   const trades = await getAgentTrades(id)
   const rank = await getAgentRank(id)
+  const balanceHistory = await getBalanceHistory(id)
   
   const workingLobs = positions.reduce((sum, p) => sum + Number(p.amount_points), 0)
   const totalLobs = Number(agent.points) || 1000000
@@ -171,6 +183,48 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Balance History */}
+          <div className="panel">
+            <div className="panel-header">
+              <span>BALANCE HISTORY</span>
+              <span className="timestamp">{balanceHistory.length} DAYS</span>
+            </div>
+            {balanceHistory.length === 0 ? (
+              <div className="panel-body" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                No history yet
+              </div>
+            ) : (
+              <div className="panel-body" style={{ padding: 0 }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>DATE</th>
+                      <th className="right">LOBS</th>
+                      <th className="right">CHANGE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {balanceHistory.map((h: any, i: number) => {
+                      const prevLobs = balanceHistory[i + 1]?.total_points || 1000000
+                      const change = Number(h.total_points) - prevLobs
+                      return (
+                        <tr key={h.recorded_at}>
+                          <td style={{ fontSize: '11px' }}>
+                            {new Date(h.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </td>
+                          <td className="right num font-bold">{formatLobs(Number(h.total_points))}</td>
+                          <td className={`right num ${change > 0 ? 'text-green' : change < 0 ? 'text-red' : 'text-muted'}`}>
+                            {change !== 0 ? formatPnl(change) : '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Open Positions */}
