@@ -50,7 +50,8 @@ export async function GET(request: NextRequest) {
       created_at,
       agents!inner (
         id,
-        name
+        name,
+        points
       )
     `)
     .order('created_at', { ascending: false })
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest) {
     id: m.id,
     agent_id: m.agents.id,
     agent_name: m.agents.name,
+    agent_points: m.agents.points,
     content: m.content,
     created_at: m.created_at,
   })) || []
