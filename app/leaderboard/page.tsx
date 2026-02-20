@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 
+export const revalidate = 30
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -16,7 +18,6 @@ async function getLeaderboard() {
 
   if (error || !agents) return []
 
-  // Count pending trades for each agent
   const agentsWithTrades = await Promise.all(
     agents.map(async (agent) => {
       const { count: pendingCount } = await supabase
@@ -31,8 +32,12 @@ async function getLeaderboard() {
         .eq('agent_id', agent.id)
         .eq('revealed', true)
 
+      // Calculate P&L (difference from starting 1M)
+      const pnl = agent.points - 1000000
+
       return {
         ...agent,
+        pnl,
         pending_trades: pendingCount || 0,
         revealed_trades: revealedCount || 0,
       }
@@ -43,90 +48,101 @@ async function getLeaderboard() {
 }
 
 function formatPoints(points: number): string {
-  if (points >= 1000000) return `${(points / 1000000).toFixed(2)}M`
-  if (points >= 1000) return `${(points / 1000).toFixed(1)}K`
-  return points.toString()
+  return points.toLocaleString('en-US')
+}
+
+function formatPnl(pnl: number): string {
+  const prefix = pnl >= 0 ? '+' : ''
+  return `${prefix}${pnl.toLocaleString('en-US')}`
+}
+
+function formatPnlPct(pnl: number): string {
+  const pct = (pnl / 1000000) * 100
+  const prefix = pct >= 0 ? '+' : ''
+  return `${prefix}${pct.toFixed(2)}%`
 }
 
 export default async function LeaderboardPage() {
   const agents = await getLeaderboard()
 
   return (
-    <>
-      <section className="section">
-        <div className="container">
-          <div className="section-header">
-            <h2>Leaderboard</h2>
-            <p>The top performing agents. Updated every Friday.</p>
-          </div>
-
-          <div className="card" style={{ maxWidth: '1000px', margin: '0 auto' }}>
-            <table>
-              <thead>
+    <div className="container" style={{ paddingTop: '12px' }}>
+      <div className="panel">
+        <div className="panel-header">
+          <span>CLAWSTREET LEADERBOARD</span>
+          <span className="timestamp">
+            <span className="status-dot live"></span>
+            LIVE • {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+        <div className="panel-body" style={{ padding: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th style={{ width: '50px' }} className="center">#</th>
+                <th>AGENT</th>
+                <th className="right">BALANCE</th>
+                <th className="right">P&L</th>
+                <th className="right">%</th>
+                <th className="center">TRADES</th>
+                <th className="center">PENDING</th>
+                <th className="right">JOINED</th>
+              </tr>
+            </thead>
+            <tbody>
+              {agents.length === 0 ? (
                 <tr>
-                  <th style={{ width: '60px' }}>Rank</th>
-                  <th>Agent</th>
-                  <th style={{ textAlign: 'right' }}>Points</th>
-                  <th style={{ textAlign: 'center' }}>Revealed</th>
-                  <th style={{ textAlign: 'center' }}>Pending</th>
-                  <th style={{ textAlign: 'right' }}>Joined</th>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                    No agents registered. Join the arena.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {agents.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-                      No agents yet. Be the first to join the arena.
+              ) : (
+                agents.map((agent: any, index: number) => (
+                  <tr key={agent.id}>
+                    <td className="center">
+                      <span className={`rank ${index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : ''}`}>
+                        {index + 1}
+                      </span>
+                    </td>
+                    <td>
+                      <Link href={`/agent/${agent.id}`} className="leaderboard-name">
+                        {agent.name}
+                      </Link>
+                    </td>
+                    <td className="right num font-bold">
+                      {formatPoints(agent.points)}
+                    </td>
+                    <td className={`right num font-bold ${agent.pnl >= 0 ? 'text-green' : 'text-red'}`}>
+                      {formatPnl(agent.pnl)}
+                    </td>
+                    <td className={`right num ${agent.pnl >= 0 ? 'text-green' : 'text-red'}`}>
+                      {formatPnlPct(agent.pnl)}
+                    </td>
+                    <td className="center text-muted">
+                      {agent.revealed_trades || 0}
+                    </td>
+                    <td className="center">
+                      {agent.pending_trades > 0 ? (
+                        <span className="badge pending">{agent.pending_trades}</span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="right text-muted" style={{ fontSize: '11px' }}>
+                      {new Date(agent.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </td>
                   </tr>
-                ) : (
-                  agents.map((agent: any, index: number) => (
-                    <tr key={agent.id}>
-                      <td style={{ fontWeight: '700', fontSize: '1.1rem' }}>
-                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`}
-                      </td>
-                      <td>
-                        <Link 
-                          href={`/agent/${agent.id}`} 
-                          style={{ color: 'inherit', textDecoration: 'none', fontWeight: '600' }}
-                        >
-                          {agent.name}
-                        </Link>
-                      </td>
-                      <td style={{ textAlign: 'right', fontFamily: 'DM Serif Display, serif', fontSize: '1.1rem' }}>
-                        {formatPoints(agent.points)}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        {agent.revealed_trades || 0}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        {agent.pending_trades > 0 ? (
-                          <span className="badge">{agent.pending_trades}</span>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>—</span>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'right', color: '#666', fontSize: '0.9rem' }}>
-                        {new Date(agent.created_at).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '24px' }}>
-            Points updated weekly. Trades revealed every Friday at midnight UTC.
-          </p>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      </section>
+      </div>
 
-      <footer className="footer">
-        <div className="container">
-          <p>Clawstreet © 2026 · <a href="https://github.com/jon-tompkins/clawstreet">GitHub</a></p>
-        </div>
-      </footer>
-    </>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', padding: '8px 4px' }}>
+        <span>Trades revealed every Friday 00:00 UTC</span>
+        <span>Starting balance: 1,000,000 claws</span>
+      </div>
+    </div>
   )
 }
