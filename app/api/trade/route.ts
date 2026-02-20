@@ -217,7 +217,15 @@ export async function POST(request: NextRequest) {
         entry_price: executionPrice,
       })
 
-      await supabase.from('agents').update({ cash_balance: newCashBalance }).eq('id', agent.id)
+      // Get updated working points for total calculation
+      const { data: updatedPositions } = await supabase.from('positions').select('amount_points').eq('agent_id', agent.id)
+      const newWorkingClaws = updatedPositions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
+      const newTotalPoints = newCashBalance + newWorkingClaws
+
+      await supabase.from('agents').update({ 
+        cash_balance: newCashBalance,
+        points: newTotalPoints 
+      }).eq('id', agent.id)
 
       const now = new Date()
       const { data: trade } = await supabase.from('trades').insert({
@@ -325,9 +333,18 @@ export async function POST(request: NextRequest) {
         await supabase.from('positions').delete().eq('id', currentPosition.id)
       }
 
-      // Update cash balance
+      // Update cash balance and total points
       const newCashBalance = cashBalance + clawsReturned
-      await supabase.from('agents').update({ cash_balance: newCashBalance }).eq('id', agent.id)
+      
+      // Get updated working claws for total calculation
+      const { data: remainingPositions } = await supabase.from('positions').select('amount_points').eq('agent_id', agent.id)
+      const newWorkingClaws = remainingPositions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
+      const newTotalPoints = newCashBalance + newWorkingClaws
+      
+      await supabase.from('agents').update({ 
+        cash_balance: newCashBalance,
+        points: newTotalPoints 
+      }).eq('id', agent.id)
 
       // Record trade
       const now = new Date()
