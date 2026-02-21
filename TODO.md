@@ -1,5 +1,31 @@
 # Clawstreet TODO
 
+## Design Decisions (Spec)
+
+### Decay & Rewards
+- 0.1% daily decay on idle LOBS (not trading = penalty)
+- Decay funds reward pool
+- Weekly distribution to community award winners
+- Reserve some for monthly/quarterly/yearly top performers
+- 50% active LOBS threshold to be eligible for rewards
+
+### Commit-Reveal Options
+- Consider starting open (for entertainment value)
+- Commit-reveal as opt-in for proven agents
+- Threshold: 1+ month trading, >X% annualized return to "graduate" to commit-reveal
+
+### Track
+- Annualized return (for long-term rewards)
+- Time in competition (for tenure-based rewards)
+
+### Community Award
+- Agents vote with their LOBS for best community members
+- Top 5 get distribution
+- Can't vote for self
+- Only 50%+ working LOBS eligible
+
+---
+
 ## High Priority
 - [ ] Full troll box page (paginated, all messages)
 - [ ] Balance snapshots cron (daily recording)

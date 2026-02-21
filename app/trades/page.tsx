@@ -22,10 +22,9 @@ async function getTrades(agentId?: string, ticker?: string, page = 1, limit = 50
       pnl_points,
       pnl_percent,
       submitted_at,
-      created_at,
       agents!inner (id, name)
     `, { count: 'exact' })
-    .order('created_at', { ascending: false })
+    .order('submitted_at', { ascending: false })
 
   if (agentId) {
     query = query.eq('agent_id', agentId)
@@ -38,6 +37,7 @@ async function getTrades(agentId?: string, ticker?: string, page = 1, limit = 50
   query = query.range(offset, offset + limit - 1)
 
   const { data, count, error } = await query
+  if (error) console.error('Trades query error:', error)
   return { trades: data || [], total: count || 0, error }
 }
 
@@ -94,6 +94,16 @@ export default async function TradesPage({ searchParams }: PageProps) {
   const totalPages = Math.ceil(total / limit)
   const selectedAgent = agents.find(a => a.id === agentId)
 
+  // Build filter URLs
+  function buildUrl(newAgent?: string, newTicker?: string, newPage?: number) {
+    const params = new URLSearchParams()
+    if (newAgent) params.set('agent', newAgent)
+    if (newTicker) params.set('ticker', newTicker)
+    if (newPage && newPage > 1) params.set('page', String(newPage))
+    const qs = params.toString()
+    return `/trades${qs ? '?' + qs : ''}`
+  }
+
   return (
     <div className="container" style={{ paddingTop: '8px' }}>
       <div className="panel">
@@ -112,55 +122,38 @@ export default async function TradesPage({ searchParams }: PageProps) {
           flexWrap: 'wrap'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <label style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Agent:</label>
-            <select 
-              defaultValue={agentId}
-              style={{
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                padding: '4px 8px',
-                fontSize: '12px',
-              }}
-              onChange={(e) => {
-                const url = new URL(window.location.href)
-                if (e.target.value) url.searchParams.set('agent', e.target.value)
-                else url.searchParams.delete('agent')
-                url.searchParams.delete('page')
-                window.location.href = url.toString()
-              }}
-            >
-              <option value="">All Agents</option>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Agent:</span>
+            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+              <Link 
+                href={buildUrl(undefined, ticker || undefined)}
+                style={{
+                  padding: '2px 8px',
+                  fontSize: '11px',
+                  background: !agentId ? 'var(--bb-orange)' : 'var(--bg-secondary)',
+                  color: !agentId ? '#000' : 'var(--text-muted)',
+                  textDecoration: 'none',
+                  border: '1px solid var(--border)'
+                }}
+              >
+                All
+              </Link>
               {agents.map(a => (
-                <option key={a.id} value={a.id}>{a.name}</option>
+                <Link 
+                  key={a.id}
+                  href={buildUrl(a.id, ticker || undefined)}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '11px',
+                    background: agentId === a.id ? 'var(--bb-orange)' : 'var(--bg-secondary)',
+                    color: agentId === a.id ? '#000' : 'var(--text-muted)',
+                    textDecoration: 'none',
+                    border: '1px solid var(--border)'
+                  }}
+                >
+                  {a.name}
+                </Link>
               ))}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <label style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Ticker:</label>
-            <select
-              defaultValue={ticker}
-              style={{
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                padding: '4px 8px',
-                fontSize: '12px',
-              }}
-              onChange={(e) => {
-                const url = new URL(window.location.href)
-                if (e.target.value) url.searchParams.set('ticker', e.target.value)
-                else url.searchParams.delete('ticker')
-                url.searchParams.delete('page')
-                window.location.href = url.toString()
-              }}
-            >
-              <option value="">All Tickers</option>
-              {tickers.map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            </div>
           </div>
 
           {(agentId || ticker) && (
@@ -205,39 +198,53 @@ export default async function TradesPage({ searchParams }: PageProps) {
                   </td>
                 </tr>
               ) : (
-                trades.map((trade: any) => (
-                  <tr key={trade.id}>
-                    <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      {formatTime(trade.submitted_at || trade.created_at)}
-                    </td>
-                    <td>
-                      <Link href={`/agent/${trade.agent_id}`} style={{ color: 'var(--text-primary)' }}>
-                        {trade.agents?.name}
-                      </Link>
-                    </td>
-                    <td>
-                      <span className={`badge ${trade.action.toLowerCase()}`}>{trade.action}</span>
-                    </td>
-                    <td>
-                      <span className="ticker">{trade.ticker}</span>
-                    </td>
-                    <td className="right num">
-                      {trade.shares ? Math.abs(trade.shares).toLocaleString() : '—'}
-                    </td>
-                    <td className="right num">
-                      {trade.execution_price ? `$${Number(trade.execution_price).toFixed(2)}` : '—'}
-                    </td>
-                    <td className="right num">
-                      {trade.amount ? trade.amount.toLocaleString() : '—'}
-                    </td>
-                    <td className={`right num font-bold ${
-                      trade.pnl_points > 0 ? 'text-green' : 
-                      trade.pnl_points < 0 ? 'text-red' : 'text-muted'
-                    }`}>
-                      {trade.pnl_points ? formatPnl(Number(trade.pnl_points)) : '—'}
-                    </td>
-                  </tr>
-                ))
+                trades.map((trade: any) => {
+                  const shares = Number(trade.shares)
+                  const isClosingTrade = trade.pnl_points !== null
+                  const isShort = trade.action === 'SELL' && shares < 0 && !isClosingTrade
+                  const isCover = trade.action === 'BUY' && shares > 0 && isClosingTrade
+                  const displayAction = isShort ? 'SHORT' : isCover ? 'COVER' : trade.action
+                  const badgeStyle = isShort 
+                    ? { background: '#8b0000', color: '#fff' } 
+                    : isCover 
+                      ? { background: '#006400', color: '#fff' } 
+                      : {}
+                  const tradeValue = Math.abs(shares * Number(trade.execution_price))
+                  
+                  return (
+                    <tr key={trade.id}>
+                      <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        {formatTime(trade.submitted_at)}
+                      </td>
+                      <td>
+                        <Link href={`/agent/${trade.agent_id}`} style={{ color: 'var(--text-primary)' }}>
+                          {trade.agents?.name}
+                        </Link>
+                      </td>
+                      <td>
+                        <span className={`badge ${trade.action.toLowerCase()}`} style={badgeStyle}>{displayAction}</span>
+                      </td>
+                      <td>
+                        <span className="ticker">{trade.ticker}</span>
+                      </td>
+                      <td className="right num">
+                        {Math.abs(shares).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="right num">
+                        ${Number(trade.execution_price).toFixed(2)}
+                      </td>
+                      <td className="right num" style={{ color: 'var(--bb-orange)' }}>
+                        {Math.round(tradeValue).toLocaleString()}
+                      </td>
+                      <td className={`right num font-bold ${
+                        trade.pnl_points > 0 ? 'text-green' : 
+                        trade.pnl_points < 0 ? 'text-red' : 'text-muted'
+                      }`}>
+                        {trade.pnl_points ? formatPnl(Number(trade.pnl_points)) : '—'}
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -258,16 +265,13 @@ export default async function TradesPage({ searchParams }: PageProps) {
             <div style={{ display: 'flex', gap: '8px' }}>
               {page > 1 && (
                 <Link
-                  href={`/trades?${new URLSearchParams({
-                    ...(agentId && { agent: agentId }),
-                    ...(ticker && { ticker }),
-                    page: String(page - 1),
-                  })}`}
+                  href={buildUrl(agentId || undefined, ticker || undefined, page - 1)}
                   style={{
                     padding: '4px 12px',
                     border: '1px solid var(--border)',
                     fontSize: '11px',
                     color: 'var(--text-secondary)',
+                    textDecoration: 'none'
                   }}
                 >
                   ← Prev
@@ -275,16 +279,13 @@ export default async function TradesPage({ searchParams }: PageProps) {
               )}
               {page < totalPages && (
                 <Link
-                  href={`/trades?${new URLSearchParams({
-                    ...(agentId && { agent: agentId }),
-                    ...(ticker && { ticker }),
-                    page: String(page + 1),
-                  })}`}
+                  href={buildUrl(agentId || undefined, ticker || undefined, page + 1)}
                   style={{
                     padding: '4px 12px',
                     border: '1px solid var(--border)',
                     fontSize: '11px',
                     color: 'var(--text-secondary)',
+                    textDecoration: 'none'
                   }}
                 >
                   Next →
