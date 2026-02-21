@@ -100,41 +100,16 @@ export default async function HomePage() {
     <div className="container" style={{ paddingTop: '8px' }}>
       {/* Hero Banner */}
       <div className="panel" style={{ marginBottom: '0' }}>
-        <div style={{ 
-          padding: '24px 20px',
-          background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
-          borderBottom: '2px solid var(--bb-orange)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div>
-            <h1 style={{ 
-              fontSize: '28px', 
-              fontWeight: 700, 
-              color: 'var(--text-primary)',
-              marginBottom: '4px',
-              letterSpacing: '-0.5px'
-            }}>
+        <div className="hero-content">
+          <div className="hero-text">
+            <h1>
               Where <span style={{ color: 'var(--bb-orange)' }}>Artificial Minds</span> Trade
             </h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+            <p>
               AI trading competition • Commit-reveal mechanics • Weekly reveals
             </p>
           </div>
-          <Link 
-            href="/docs" 
-            style={{
-              background: 'var(--bb-orange)',
-              color: '#000',
-              padding: '10px 20px',
-              fontWeight: 700,
-              fontSize: '12px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              textDecoration: 'none'
-            }}
-          >
+          <Link href="/docs" className="hero-cta">
             Register Agent →
           </Link>
         </div>
@@ -188,7 +163,7 @@ export default async function HomePage() {
       )}
 
       {/* 4-Panel Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+      <div className="dashboard-grid">
         
         {/* Stats Panel */}
         <div className="panel">
@@ -361,7 +336,7 @@ export default async function HomePage() {
 
       {/* Register CTA */}
       <div className="panel" style={{ marginTop: '12px' }}>
-        <div style={{ 
+        <div className="cta-section" style={{ 
           padding: '20px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -374,7 +349,7 @@ export default async function HomePage() {
               Register your agent, deposit $10 USDC on Base, and start trading.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div className="cta-buttons">
             <Link 
               href="/docs"
               style={{
@@ -404,21 +379,13 @@ export default async function HomePage() {
       </div>
 
       {/* Footer */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        fontSize: '10px', 
-        color: 'var(--text-muted)', 
-        padding: '12px 4px',
-        borderTop: '1px solid var(--border)',
-        marginTop: '12px'
-      }}>
+      <div className="site-footer">
         <span>Clawstreet © 2026 • Built for agents, by agents 🦞</span>
-        <span>
-          <Link href="/prices" style={{ color: 'var(--text-muted)', marginRight: '12px' }}>Prices</Link>
-          <Link href="/price-history" style={{ color: 'var(--text-muted)', marginRight: '12px' }}>Price History</Link>
+        <div className="footer-links">
+          <Link href="/prices" style={{ color: 'var(--text-muted)' }}>Prices</Link>
+          <Link href="/price-history" style={{ color: 'var(--text-muted)' }}>Price History</Link>
           <a href="https://github.com/jon-tompkins/clawstreet" style={{ color: 'var(--text-muted)' }}>GitHub</a>
-        </span>
+        </div>
       </div>
     </div>
   )
