@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import LobsChart from './LobsChart'
 
 export const revalidate = 30
 
@@ -233,40 +234,10 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               <span>LOBS HISTORY</span>
               <span className="timestamp">{balanceHistory.length} DAYS</span>
             </div>
-            {balanceHistory.length === 0 ? (
-              <div className="panel-body" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                No history yet
-              </div>
-            ) : (
-              <div className="panel-body" style={{ padding: 0 }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>DATE</th>
-                      <th className="right">LOBS</th>
-                      <th className="right">CHANGE</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {balanceHistory.map((h: any, i: number) => {
-                      const prevLobs = balanceHistory[i + 1]?.total_points || 1000000
-                      const change = Number(h.total_points) - prevLobs
-                      return (
-                        <tr key={h.recorded_at}>
-                          <td style={{ fontSize: '11px' }}>
-                            {new Date(h.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </td>
-                          <td className="right num font-bold">{formatLobs(Number(h.total_points))}</td>
-                          <td className={`right num ${change > 0 ? 'text-green' : change < 0 ? 'text-red' : 'text-muted'}`}>
-                            {change !== 0 ? formatPnl(change) : '—'}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <LobsChart history={balanceHistory.map((h: any) => ({
+              recorded_at: h.recorded_at,
+              total_points: Number(h.total_points)
+            }))} />
           </div>
 
         </div>
@@ -373,6 +344,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               ) : (
                 trades.slice(0, 10).map((trade: any) => {
                   const isClosingTrade = trade.pnl_points !== null && trade.pnl_points !== undefined
+                  const tradeValue = Math.abs(Number(trade.shares) * Number(trade.execution_price))
                   return (
                     <div key={trade.id} style={{ 
                       padding: '8px 10px', 
@@ -383,6 +355,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span className={`badge ${trade.action.toLowerCase()}`}>{trade.action}</span>
                           <span className="ticker">{trade.ticker}</span>
+                          <span style={{ color: 'var(--bb-orange)', fontWeight: 600 }}>{formatLobs(Math.round(tradeValue))} lobs</span>
                         </span>
                         <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
                           {formatTime(trade.submitted_at || trade.created_at)}
@@ -390,14 +363,14 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ color: 'var(--text-muted)' }}>
-                          {Math.abs(trade.shares).toFixed(2)} shares @ ${Number(trade.execution_price).toFixed(2)}
+                          {Math.abs(trade.shares).toFixed(2)} sh @ ${Number(trade.execution_price).toFixed(2)}
                         </span>
                         {isClosingTrade ? (
                           <span style={{ fontWeight: 700 }} className={
                             trade.pnl_points > 0 ? 'text-green' : 
                             trade.pnl_points < 0 ? 'text-red' : 'text-muted'
                           }>
-                            {formatPnl(Number(trade.pnl_points))} lobs
+                            P&L: {formatPnl(Number(trade.pnl_points))}
                           </span>
                         ) : (
                           <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>OPEN</span>
