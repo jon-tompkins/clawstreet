@@ -179,52 +179,10 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                 </div>
                 <div>
                   <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--bb-orange)' }}>{formatLobs(workingLobs)}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active Lobs</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Working Lobs</div>
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Balance History */}
-          <div className="panel">
-            <div className="panel-header">
-              <span>BALANCE HISTORY</span>
-              <span className="timestamp">{balanceHistory.length} DAYS</span>
-            </div>
-            {balanceHistory.length === 0 ? (
-              <div className="panel-body" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                No history yet
-              </div>
-            ) : (
-              <div className="panel-body" style={{ padding: 0 }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>DATE</th>
-                      <th className="right">LOBS</th>
-                      <th className="right">CHANGE</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {balanceHistory.map((h: any, i: number) => {
-                      const prevLobs = balanceHistory[i + 1]?.total_points || 1000000
-                      const change = Number(h.total_points) - prevLobs
-                      return (
-                        <tr key={h.recorded_at}>
-                          <td style={{ fontSize: '11px' }}>
-                            {new Date(h.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </td>
-                          <td className="right num font-bold">{formatLobs(Number(h.total_points))}</td>
-                          <td className={`right num ${change > 0 ? 'text-green' : change < 0 ? 'text-red' : 'text-muted'}`}>
-                            {change !== 0 ? formatPnl(change) : '—'}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
 
           {/* Open Positions */}
@@ -269,51 +227,48 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
-          {/* Trading Statistics */}
+          {/* LOBS History */}
           <div className="panel">
             <div className="panel-header">
-              <span>TRADING STATISTICS</span>
+              <span>LOBS HISTORY</span>
+              <span className="timestamp">{balanceHistory.length} DAYS</span>
             </div>
-            <div className="panel-body">
-              <div className="data-row">
-                <span className="data-label">Total Trades</span>
-                <span className="data-value">{trades.length}</span>
+            {balanceHistory.length === 0 ? (
+              <div className="panel-body" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                No history yet
               </div>
-              <div className="data-row">
-                <span className="data-label">Closed Trades</span>
-                <span className="data-value">{closedTrades.length}</span>
+            ) : (
+              <div className="panel-body" style={{ padding: 0 }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>DATE</th>
+                      <th className="right">LOBS</th>
+                      <th className="right">CHANGE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {balanceHistory.map((h: any, i: number) => {
+                      const prevLobs = balanceHistory[i + 1]?.total_points || 1000000
+                      const change = Number(h.total_points) - prevLobs
+                      return (
+                        <tr key={h.recorded_at}>
+                          <td style={{ fontSize: '11px' }}>
+                            {new Date(h.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </td>
+                          <td className="right num font-bold">{formatLobs(Number(h.total_points))}</td>
+                          <td className={`right num ${change > 0 ? 'text-green' : change < 0 ? 'text-red' : 'text-muted'}`}>
+                            {change !== 0 ? formatPnl(change) : '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <div className="data-row">
-                <span className="data-label">Wins / Losses</span>
-                <span className="data-value">
-                  <span className="text-green">{wins}W</span>
-                  <span style={{ margin: '0 4px' }}>/</span>
-                  <span className="text-red">{losses}L</span>
-                </span>
-              </div>
-              <div className="data-row">
-                <span className="data-label">Win Rate</span>
-                <span className="data-value">{winRate.toFixed(1)}%</span>
-              </div>
-              <div className="data-row">
-                <span className="data-label">Realized P&L</span>
-                <span className={`data-value ${realizedPnl >= 0 ? 'up' : 'down'}`}>{formatPnl(realizedPnl)}</span>
-              </div>
-              <div className="data-row">
-                <span className="data-label">Best Trade</span>
-                <span className="data-value up">{bestTrade !== null ? formatPnl(bestTrade) : '—'}</span>
-              </div>
-              <div className="data-row">
-                <span className="data-label">Worst Trade</span>
-                <span className="data-value down">{worstTrade !== null ? formatPnl(worstTrade) : '—'}</span>
-              </div>
-            </div>
+            )}
           </div>
-        </div>
 
-        {/* Right Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          
           {/* Strategy / Bio */}
           <div className="panel">
             <div className="panel-header">
@@ -355,8 +310,53 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Trade Feed */}
+        {/* Right Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+          {/* Trading Statistics */}
+          <div className="panel">
+            <div className="panel-header">
+              <span>TRADING STATISTICS</span>
+            </div>
+            <div className="panel-body">
+              <div className="data-row">
+                <span className="data-label">Total Trades</span>
+                <span className="data-value">{trades.length}</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Closed Trades</span>
+                <span className="data-value">{closedTrades.length}</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Wins / Losses</span>
+                <span className="data-value">
+                  <span className="text-green">{wins}W</span>
+                  <span style={{ margin: '0 4px' }}>/</span>
+                  <span className="text-red">{losses}L</span>
+                </span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Win Rate</span>
+                <span className="data-value">{winRate.toFixed(1)}%</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Realized P&L</span>
+                <span className={`data-value ${realizedPnl >= 0 ? 'up' : 'down'}`}>{formatPnl(realizedPnl)}</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Best Trade</span>
+                <span className="data-value up">{bestTrade !== null ? formatPnl(bestTrade) : '—'}</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Worst Trade</span>
+                <span className="data-value down">{worstTrade !== null ? formatPnl(worstTrade) : '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Trades */}
           <div className="panel">
             <div className="panel-header">
               <span>RECENT TRADES</span>
@@ -364,40 +364,47 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                 VIEW ALL {trades.length} →
               </Link>
             </div>
-            <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+            <div style={{ maxHeight: '450px', overflowY: 'auto' }}>
               {trades.length === 0 ? (
                 <div className="panel-body" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '12px' }}>
                   No trades yet
                 </div>
               ) : (
-                trades.slice(0, 10).map((trade: any) => (
-                  <div key={trade.id} style={{ 
-                    padding: '6px 10px', 
-                    borderBottom: '1px solid var(--border)',
-                    display: 'grid',
-                    gridTemplateColumns: '70px 1fr 70px',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '11px'
-                  }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                      {formatTime(trade.submitted_at || trade.created_at)}
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className={`badge ${trade.action.toLowerCase()}`}>{trade.action}</span>
-                      <span className="ticker">{trade.ticker}</span>
-                      {trade.shares && <span style={{ color: 'var(--text-muted)' }}>{Math.abs(trade.shares)} sh</span>}
-                      {trade.execution_price && <span style={{ color: 'var(--text-muted)' }}>@ ${Number(trade.execution_price).toFixed(2)}</span>}
-                    </span>
-                    <span style={{ textAlign: 'right', fontWeight: 700 }} className={
-                      trade.pnl_points > 0 ? 'text-green' : 
-                      trade.pnl_points < 0 ? 'text-red' : 'text-muted'
-                    }>
-                      {trade.pnl_points ? formatPnl(Number(trade.pnl_points)) : '—'}
-                    </span>
-                  </div>
-                ))
-              )}
+                trades.slice(0, 10).map((trade: any) => {
+                  const isClosingTrade = trade.pnl_points !== null && trade.pnl_points !== undefined
+                  return (
+                    <div key={trade.id} style={{ 
+                      padding: '8px 10px', 
+                      borderBottom: '1px solid var(--border)',
+                      fontSize: '11px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span className={`badge ${trade.action.toLowerCase()}`}>{trade.action}</span>
+                          <span className="ticker">{trade.ticker}</span>
+                        </span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                          {formatTime(trade.submitted_at || trade.created_at)}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          {Math.abs(trade.shares).toFixed(2)} shares @ ${Number(trade.execution_price).toFixed(2)}
+                        </span>
+                        {isClosingTrade ? (
+                          <span style={{ fontWeight: 700 }} className={
+                            trade.pnl_points > 0 ? 'text-green' : 
+                            trade.pnl_points < 0 ? 'text-red' : 'text-muted'
+                          }>
+                            {formatPnl(Number(trade.pnl_points))} lobs
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>OPEN</span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
             </div>
           </div>
         </div>
