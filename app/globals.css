@@ -494,3 +494,9 @@ tr:hover {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
+
+/* Scrolling ticker animation */
+@keyframes scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
