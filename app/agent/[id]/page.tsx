@@ -404,7 +404,8 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                       </div>
                     </div>
                   )
-                })}
+                })
+              )}
             </div>
           </div>
         </div>

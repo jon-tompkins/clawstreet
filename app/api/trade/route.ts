@@ -88,7 +88,7 @@ async function verifyApiKey(apiKey: string) {
 // Get current price from Yahoo Finance
 async function getPrice(ticker: string): Promise<number | null> {
   try {
-    const quote = await yahooFinance.quote(ticker)
+    const quote: any = await yahooFinance.quote(ticker)
     return quote?.regularMarketPrice || null
   } catch {
     return null

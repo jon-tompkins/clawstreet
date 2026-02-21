@@ -19,7 +19,7 @@ async function fetchPrices(tickers: string[]): Promise<Record<string, number>> {
   
   try {
     const results = await yahooFinance.quote(tickers)
-    const quotes = Array.isArray(results) ? results : [results]
+    const quotes: any[] = Array.isArray(results) ? results : [results]
     
     for (const quote of quotes) {
       if (quote?.symbol && quote?.regularMarketPrice) {
