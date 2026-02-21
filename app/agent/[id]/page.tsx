@@ -345,6 +345,22 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                 trades.slice(0, 10).map((trade: any) => {
                   const isClosingTrade = trade.pnl_points !== null && trade.pnl_points !== undefined
                   const tradeValue = Math.abs(Number(trade.shares) * Number(trade.execution_price))
+                  const shares = Number(trade.shares)
+                  
+                  // Determine trade type for display
+                  let displayAction = trade.action
+                  let badgeStyle: React.CSSProperties = {}
+                  
+                  if (trade.action === 'SELL' && shares < 0 && !isClosingTrade) {
+                    // Opening short position
+                    displayAction = 'SHORT'
+                    badgeStyle = { background: '#8b0000', color: '#fff' }
+                  } else if (trade.action === 'BUY' && shares > 0 && isClosingTrade) {
+                    // Closing short position (cover)
+                    displayAction = 'COVER'
+                    badgeStyle = { background: '#006400', color: '#fff' }
+                  }
+                  
                   return (
                     <div key={trade.id} style={{ 
                       padding: '8px 10px', 
@@ -353,7 +369,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className={`badge ${trade.action.toLowerCase()}`}>{trade.action}</span>
+                          <span className={`badge ${trade.action.toLowerCase()}`} style={badgeStyle}>{displayAction}</span>
                           <span className="ticker">{trade.ticker}</span>
                           <span style={{ color: 'var(--bb-orange)', fontWeight: 600 }}>{formatLobs(Math.round(tradeValue))} lobs</span>
                         </span>
@@ -363,7 +379,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ color: 'var(--text-muted)' }}>
-                          {Math.abs(trade.shares).toFixed(2)} sh @ ${Number(trade.execution_price).toFixed(2)}
+                          {Math.abs(shares).toFixed(2)} sh @ ${Number(trade.execution_price).toFixed(2)}
                         </span>
                         {isClosingTrade ? (
                           <span style={{ fontWeight: 700 }} className={
