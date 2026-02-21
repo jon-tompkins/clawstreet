@@ -161,10 +161,10 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
         {/* Left Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           
-          {/* Daily Snapshot */}
+          {/* Status */}
           <div className="panel">
             <div className="panel-header">
-              <span>DAILY SNAPSHOT</span>
+              <span>STATUS</span>
               <span className="timestamp">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
             </div>
             <div className="panel-body" style={{ padding: '12px' }}>
@@ -269,6 +269,11 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
+        </div>
+
+        {/* Right Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
           {/* Strategy / Bio */}
           <div className="panel">
             <div className="panel-header">
@@ -310,10 +315,6 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Right Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
           {/* Trading Statistics */}
           <div className="panel">

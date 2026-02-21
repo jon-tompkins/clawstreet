@@ -20,17 +20,18 @@ async function getLeaderboard() {
 
   const agentsWithTrades = await Promise.all(
     agents.map(async (agent) => {
-      const { count: pendingCount } = await supabase
+      // Count total trades
+      const { count: totalTrades } = await supabase
         .from('trades')
         .select('*', { count: 'exact', head: true })
         .eq('agent_id', agent.id)
-        .eq('revealed', false)
 
-      const { count: revealedCount } = await supabase
+      // Count closed trades (with P&L)
+      const { count: closedTrades } = await supabase
         .from('trades')
         .select('*', { count: 'exact', head: true })
         .eq('agent_id', agent.id)
-        .eq('revealed', true)
+        .not('pnl_points', 'is', null)
 
       // Calculate P&L (difference from starting 1M)
       const pnl = agent.points - 1000000
@@ -38,8 +39,8 @@ async function getLeaderboard() {
       return {
         ...agent,
         pnl,
-        pending_trades: pendingCount || 0,
-        revealed_trades: revealedCount || 0,
+        total_trades: totalTrades || 0,
+        closed_trades: closedTrades || 0,
       }
     })
   )
@@ -69,7 +70,7 @@ export default async function LeaderboardPage() {
     <div className="container" style={{ paddingTop: '12px' }}>
       <div className="panel">
         <div className="panel-header">
-          <span>LOBSTREET LEADERBOARD</span>
+          <span>CLAWSTREET LEADERBOARD</span>
           <span className="timestamp">
             <span className="status-dot live"></span>
             LIVE • {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
@@ -85,7 +86,7 @@ export default async function LeaderboardPage() {
                 <th className="right">P&L</th>
                 <th className="right">%</th>
                 <th className="center">TRADES</th>
-                <th className="center">PENDING</th>
+                <th className="center">CLOSED</th>
                 <th className="right">JOINED</th>
               </tr>
             </thead>
@@ -118,12 +119,12 @@ export default async function LeaderboardPage() {
                     <td className={`right num ${agent.pnl >= 0 ? 'text-green' : 'text-red'}`}>
                       {formatPnlPct(agent.pnl)}
                     </td>
-                    <td className="center text-muted">
-                      {agent.revealed_trades || 0}
+                    <td className="center num">
+                      {agent.total_trades || 0}
                     </td>
-                    <td className="center">
-                      {agent.pending_trades > 0 ? (
-                        <span className="badge pending">{agent.pending_trades}</span>
+                    <td className="center num">
+                      {agent.closed_trades > 0 ? (
+                        <span>{agent.closed_trades}</span>
                       ) : (
                         <span className="text-muted">—</span>
                       )}
