@@ -11,7 +11,17 @@ const BLACKOUT_START_HOUR = 15  // 3 PM EST
 const BLACKOUT_START_MIN = 58   // 3:58 PM EST
 const BLACKOUT_END_HOUR = 16    // 4 PM EST (reopens after close prices pulled)
 
+// Crypto tickers trade 24/7
+const CRYPTO_TICKERS = [
+  'BTC-USD', 'ETH-USD', 'SOL-USD', 'DOGE-USD', 'ADA-USD', 
+  'AVAX-USD', 'DOT-USD', 'LINK-USD', 'MATIC-USD', 'UNI-USD',
+  'AAVE-USD', 'MKR-USD', 'CRV-USD', 'LDO-USD', 'ARB-USD',
+]
+
 const ALLOWED_TICKERS = [
+  // Crypto (24/7)
+  ...CRYPTO_TICKERS,
+  // Stocks & ETFs
   'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK.B',
   'JPM', 'V', 'UNH', 'MA', 'HD', 'PG', 'JNJ', 'ABBV', 'BAC', 'KO', 'MRK',
   'PEP', 'COST', 'AVGO', 'TMO', 'MCD', 'WMT', 'CSCO', 'ABT', 'CRM', 'ACN',
@@ -38,15 +48,20 @@ function getSupabase() {
   )
 }
 
-// Check if we're in blackout period
-function isBlackoutPeriod(): { blocked: boolean; reason?: string } {
+// Check if we're in blackout period (crypto trades 24/7)
+function isBlackoutPeriod(ticker?: string): { blocked: boolean; reason?: string } {
+  // Crypto trades 24/7
+  if (ticker && CRYPTO_TICKERS.includes(ticker.toUpperCase())) {
+    return { blocked: false }
+  }
+  
   const now = new Date()
   const est = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
   const hour = est.getHours()
   const min = est.getMinutes()
   const day = est.getDay()
   
-  // Weekend - no trading
+  // Weekend - no trading (except crypto)
   if (day === 0 || day === 6) {
     return { blocked: true, reason: 'Market closed (weekend)' }
   }
@@ -117,12 +132,6 @@ export async function POST(request: NextRequest) {
   const supabase = getSupabase()
   
   try {
-    // Check blackout
-    const blackout = isBlackoutPeriod()
-    if (blackout.blocked) {
-      return NextResponse.json({ error: blackout.reason }, { status: 403 })
-    }
-    
     // Verify API key
     const apiKey = request.headers.get('X-API-Key')
     if (!apiKey) {
@@ -184,6 +193,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         error: `Invalid ticker. Must be one of: ${ALLOWED_TICKERS.slice(0, 20).join(', ')}...` 
       }, { status: 400 })
+    }
+    
+    // Check blackout (crypto trades 24/7)
+    const blackout = isBlackoutPeriod(upperTicker)
+    if (blackout.blocked) {
+      return NextResponse.json({ error: blackout.reason }, { status: 403 })
     }
     
     // Get current price

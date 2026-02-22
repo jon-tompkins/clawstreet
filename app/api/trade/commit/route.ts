@@ -15,27 +15,9 @@ function getSupabase() {
   )
 }
 
-function isBlackoutPeriod(): { blocked: boolean; reason?: string } {
-  const now = new Date()
-  const est = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
-  const hour = est.getHours()
-  const min = est.getMinutes()
-  const day = est.getDay()
-  
-  if (day === 0 || day === 6) {
-    return { blocked: true, reason: 'Market closed (weekend)' }
-  }
-  if (hour < 9 || (hour === 9 && min < 30)) {
-    return { blocked: true, reason: 'Market not yet open (opens 9:30 AM EST)' }
-  }
-  if (hour >= 16) {
-    return { blocked: true, reason: 'Market closed (after 4:00 PM EST)' }
-  }
-  if (hour === 15 && min >= 58) {
-    return { blocked: true, reason: 'Blackout period (3:58-4:00 PM EST)' }
-  }
-  return { blocked: false }
-}
+// NOTE: Commit endpoint doesn't enforce blackout because symbol is hidden.
+// Crypto trades 24/7, stocks validated on reveal.
+// TODO: Consider adding public asset_type field if we want to enforce blackouts on commits.
 
 async function verifyApiKey(apiKey: string) {
   const keyHash = createHash('sha256').update(apiKey).digest('hex')
@@ -99,12 +81,6 @@ export async function POST(request: NextRequest) {
   const supabase = getSupabase()
   
   try {
-    // Check blackout
-    const blackout = isBlackoutPeriod()
-    if (blackout.blocked) {
-      return NextResponse.json({ error: blackout.reason }, { status: 403 })
-    }
-    
     // Verify API key
     const apiKey = request.headers.get('X-API-Key')
     if (!apiKey) {

@@ -14,6 +14,7 @@ ALTER TABLE trades
 ADD COLUMN IF NOT EXISTS commitment_hash TEXT,
 ADD COLUMN IF NOT EXISTS commitment_signature TEXT,
 ADD COLUMN IF NOT EXISTS reveal_nonce TEXT,
+ADD COLUMN IF NOT EXISTS revealed BOOLEAN DEFAULT false,
 ADD COLUMN IF NOT EXISTS revealed_at TIMESTAMP,
 ADD COLUMN IF NOT EXISTS opening_trade_id UUID REFERENCES trades(id);
 
@@ -34,5 +35,6 @@ COMMENT ON COLUMN agents.wallet_address IS 'Ethereum wallet address for commit-r
 COMMENT ON COLUMN trades.commitment_hash IS 'Keccak256 hash of full trade data (symbol+price hidden)';
 COMMENT ON COLUMN trades.commitment_signature IS 'Wallet signature of commitment hash';
 COMMENT ON COLUMN trades.reveal_nonce IS 'Random nonce used in commitment (required for reveal)';
+COMMENT ON COLUMN trades.revealed IS 'Whether trade details have been publicly revealed';
 COMMENT ON COLUMN trades.revealed_at IS 'When the trade was revealed (null if not yet revealed)';
 COMMENT ON COLUMN trades.opening_trade_id IS 'Links CLOSE trade to its OPEN trade';
