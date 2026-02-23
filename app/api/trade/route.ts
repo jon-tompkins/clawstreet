@@ -342,8 +342,7 @@ export async function POST(request: NextRequest) {
       
       await supabase.from('agents').update({ 
         cash_balance: newCashBalance,
-        points: newCashBalance + totalWorking,
-        total_fees_paid: (Number(agent.total_fees_paid) || 0) + fee
+        points: newCashBalance + totalWorking
       }).eq('id', agent.id)
       
       // Add fee to prize pool
@@ -433,8 +432,7 @@ export async function POST(request: NextRequest) {
       
       await supabase.from('agents').update({ 
         cash_balance: newCashBalance,
-        points: newCashBalance + totalWorking,
-        total_fees_paid: (Number(agent.total_fees_paid) || 0) + closeFee
+        points: newCashBalance + totalWorking
       }).eq('id', agent.id)
       
       // Add close fee to prize pool
