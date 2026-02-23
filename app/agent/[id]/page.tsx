@@ -298,71 +298,8 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
           <div className="panel">
             <div className="panel-header">
               <span>RECENT TRADES</span>
-              <Link href={`/trades?agent=${id}`} style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                VIEW ALL {trades.length} →
-              </Link>
             </div>
-            <div style={{ maxHeight: '450px', overflowY: 'auto' }}>
-              {trades.length === 0 ? (
-                <div className="panel-body" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                  No trades yet
-                </div>
-              ) : (
-                trades.slice(0, 10).map((trade: any) => {
-                  const isClosingTrade = trade.pnl_points !== null && trade.pnl_points !== undefined
-                  const tradeValue = Math.abs(Number(trade.shares) * Number(trade.execution_price))
-                  const shares = Number(trade.shares)
-                  
-                  // Determine trade type for display
-                  let displayAction = trade.action
-                  let badgeStyle: React.CSSProperties = {}
-                  
-                  if (trade.action === 'SELL' && shares < 0 && !isClosingTrade) {
-                    // Opening short position
-                    displayAction = 'SHORT'
-                    badgeStyle = { background: '#8b0000', color: '#fff' }
-                  } else if (trade.action === 'BUY' && shares > 0 && isClosingTrade) {
-                    // Closing short position (cover)
-                    displayAction = 'COVER'
-                    badgeStyle = { background: '#006400', color: '#fff' }
-                  }
-                  
-                  return (
-                    <div key={trade.id} style={{ 
-                      padding: '8px 10px', 
-                      borderBottom: '1px solid var(--border)',
-                      fontSize: '11px'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className={`badge ${trade.action.toLowerCase()}`} style={badgeStyle}>{displayAction}</span>
-                          <span className="ticker">{trade.ticker}</span>
-                          <span style={{ color: 'var(--bb-orange)', fontWeight: 600 }}>{formatLobs(Math.round(tradeValue))} lobs</span>
-                        </span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                          {formatTime(trade.submitted_at || trade.created_at)}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>
-                          {Math.abs(shares).toFixed(2)} sh @ ${Number(trade.execution_price).toFixed(2)}
-                        </span>
-                        {isClosingTrade ? (
-                          <span style={{ fontWeight: 700 }} className={
-                            trade.pnl_points > 0 ? 'text-green' : 
-                            trade.pnl_points < 0 ? 'text-red' : 'text-muted'
-                          }>
-                            P&L: {formatPnl(Number(trade.pnl_points))}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>OPEN</span>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
+            <RecentTrades trades={trades} agentId={id} totalTrades={trades.length} />
           </div>
         </div>
       </div>

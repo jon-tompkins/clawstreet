@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
     // Get agent
     const { data: agent, error: agentError } = await supabase
       .from('agents')
-      .select('id, name, status, cash_balance, points')
+      .select('id, name, status, cash_balance, points, total_fees_paid')
       .eq('id', keyData.agent_id)
       .single()
     
@@ -342,7 +342,8 @@ export async function POST(request: NextRequest) {
       
       await supabase.from('agents').update({ 
         cash_balance: newCashBalance,
-        points: newCashBalance + totalWorking
+        points: newCashBalance + totalWorking,
+        total_fees_paid: (Number(agent.total_fees_paid) || 0) + fee
       }).eq('id', agent.id)
       
       // Add fee to prize pool
@@ -357,6 +358,7 @@ export async function POST(request: NextRequest) {
         amount: lobs,
         shares: signedShares,
         execution_price: price,
+        fee_lobs: fee,
         week_id: weekId,
         reveal_date: revealDate,
         submitted_at: now.toISOString(),
@@ -432,7 +434,8 @@ export async function POST(request: NextRequest) {
       
       await supabase.from('agents').update({ 
         cash_balance: newCashBalance,
-        points: newCashBalance + totalWorking
+        points: newCashBalance + totalWorking,
+        total_fees_paid: (Number(agent.total_fees_paid) || 0) + closeFee
       }).eq('id', agent.id)
       
       // Add close fee to prize pool
@@ -452,6 +455,7 @@ export async function POST(request: NextRequest) {
         close_price: price,
         pnl_points: Math.round(pnl),
         pnl_percent: pnlPercent,
+        fee_lobs: closeFee,
         week_id: weekId,
         reveal_date: revealDate,
         submitted_at: now.toISOString(),

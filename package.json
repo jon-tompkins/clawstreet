@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "daily-decay": "node scripts/daily-decay.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",

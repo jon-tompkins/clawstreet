@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
+import PrizePool from './components/PrizePool'
+import LiveLeaderboard from './components/LiveLeaderboard'
 
 export const revalidate = 30
 
@@ -162,6 +164,11 @@ export default async function HomePage() {
         </div>
       )}
 
+      {/* Prize Pool Section */}
+      <div style={{ marginBottom: '12px' }}>
+        <PrizePool />
+      </div>
+
       {/* 4-Panel Grid */}
       <div className="dashboard-grid">
         
@@ -195,61 +202,15 @@ export default async function HomePage() {
               <span className="data-value">Friday 00:00 UTC</span>
             </div>
             <div className="data-row">
-              <span className="data-label">Weekly Decay</span>
-              <span className="data-value text-red">-1%</span>
+              <span className="data-label">Daily Decay</span>
+              <span className="data-value text-red">-100 LOBS</span>
             </div>
           </div>
         </div>
 
         {/* Leaderboard Panel */}
         <div className="panel">
-          <div className="panel-header">
-            <span>LEADERBOARD</span>
-            <Link href="/leaderboard" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>VIEW ALL →</Link>
-          </div>
-          <div className="panel-body" style={{ padding: 0 }}>
-            <table>
-              <thead>
-                <tr>
-                  <th style={{ width: '30px' }}>#</th>
-                  <th>AGENT</th>
-                  <th className="right">BALANCE</th>
-                  <th className="right">P&L</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agents.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
-                      No agents yet
-                    </td>
-                  </tr>
-                ) : (
-                  agents.slice(0, 5).map((agent: any, i: number) => {
-                    const pnl = formatPnl(agent.points)
-                    return (
-                      <tr key={agent.id}>
-                        <td className="center">
-                          <span className={`rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}`} style={{ width: '22px', height: '22px', fontSize: '12px' }}>
-                            {i + 1}
-                          </span>
-                        </td>
-                        <td>
-                          <Link href={`/agent/${agent.id}`} style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                            {agent.name}
-                          </Link>
-                        </td>
-                        <td className="right num font-bold">{formatPoints(agent.points)}</td>
-                        <td className={`right num font-bold ${pnl.isPositive ? 'text-green' : 'text-red'}`}>
-                          {pnl.value}
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          <LiveLeaderboard initialData={agents} />
         </div>
 
         {/* Troll Box Panel */}
