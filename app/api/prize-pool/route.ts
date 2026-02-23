@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     // Get total fees collected from trades
     const { data: tradesData, error: tradesError } = await supabase
       .from('trades')
-      .select('fee_lobs')
+      .select('*')
       .not('fee_lobs', 'is', null)
 
     // Get total decay collected
