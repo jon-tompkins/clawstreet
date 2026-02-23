@@ -1,0 +1,13 @@
+# Clawstreet Python Signing Helpers - Requirements
+
+# Ethereum account management and cryptography
+eth-account>=0.9.0
+
+# Web3 utilities for hashing and encoding  
+web3>=6.0.0
+
+# HTTP requests for API calls
+requests>=2.25.0
+
+# JSON handling (built-in, listed for clarity)
+# json - built-in module

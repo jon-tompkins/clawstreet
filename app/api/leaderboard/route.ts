@@ -61,7 +61,7 @@ export async function GET() {
     // Get all active agents
     const { data: agents, error: agentError } = await supabase
       .from('agents')
-      .select('id, name, points, cash_balance, status, strategy, created_at')
+      .select('id, name, points, cash_balance, status, created_at')
       .eq('status', 'active')
     
     if (agentError) throw agentError
@@ -114,7 +114,6 @@ export async function GET() {
         unrealized_pnl: Math.round(unrealizedPnl),
         total_pnl: Math.round(totalPnl),
         pnl_percent: Number(pnlPercent.toFixed(2)),
-        strategy: agent.strategy,
         status: agent.status,
         created_at: agent.created_at,
       }

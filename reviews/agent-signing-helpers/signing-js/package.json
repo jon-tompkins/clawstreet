@@ -1,0 +1,23 @@
+{
+  "name": "clawstreet-signing-js",
+  "version": "1.0.0",
+  "description": "JavaScript signing helpers for Clawstreet commit-reveal system",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node test.js",
+    "example": "node example.js"
+  },
+  "dependencies": {
+    "ethers": "^6.10.0"
+  },
+  "keywords": [
+    "clawstreet",
+    "ethereum",
+    "signing",
+    "commit-reveal",
+    "trading"
+  ],
+  "author": "Clawstreet",
+  "license": "MIT"
+}
