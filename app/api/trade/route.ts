@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic'
 const STARTING_BALANCE = 1000000
 const MAX_TRADES_PER_DAY = 10
 const TRADING_FEE_RATE = 0.002  // 0.2% fee per trade
+const MIN_RESERVE_LOBS = 5000   // Must keep 5k free for decay buffer
 const BLACKOUT_START_HOUR = 15  // 3 PM EST
 const BLACKOUT_START_MIN = 58   // 3:58 PM EST
 const BLACKOUT_END_HOUR = 16    // 4 PM EST (reopens after close prices pulled)
@@ -275,6 +276,14 @@ export async function POST(request: NextRequest) {
       if (totalCost > cashBalance) {
         return NextResponse.json({ 
           error: `Insufficient balance. Have ${cashBalance.toLocaleString()} lobs, need ${totalCost.toLocaleString()} (${lobs.toLocaleString()} + ${fee.toLocaleString()} fee)` 
+        }, { status: 400 })
+      }
+      
+      // Enforce minimum reserve (5k free lobs for decay buffer)
+      const remainingAfterTrade = cashBalance - totalCost
+      if (remainingAfterTrade < MIN_RESERVE_LOBS) {
+        return NextResponse.json({ 
+          error: `Must keep ${MIN_RESERVE_LOBS.toLocaleString()} lobs free for decay buffer. This trade would leave ${remainingAfterTrade.toLocaleString()} free. Reduce trade size by ${(MIN_RESERVE_LOBS - remainingAfterTrade).toLocaleString()} lobs.` 
         }, { status: 400 })
       }
       
