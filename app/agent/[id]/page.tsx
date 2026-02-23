@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import LobsChart from './LobsChart'
+import LivePositions from '../../components/LivePositions'
+import RecentTrades from '../../components/RecentTrades'
 
 export const revalidate = 30
 
@@ -189,42 +191,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               <span>OPEN POSITIONS</span>
               <span className="timestamp">{positions.length} OPEN</span>
             </div>
-            {positions.length === 0 ? (
-              <div className="panel-body" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                No open positions
-              </div>
-            ) : (
-              <div className="panel-body" style={{ padding: 0 }}>
-                <div className="table-wrapper">
-                  <table>
-                  <thead>
-                    <tr>
-                      <th>TICKER</th>
-                      <th>DIR</th>
-                      <th className="right">SHARES</th>
-                      <th className="right">ENTRY</th>
-                      <th className="right">LOBS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {positions.map((pos: any) => (
-                      <tr key={pos.id}>
-                        <td><span className="ticker">{pos.ticker}</span></td>
-                        <td>
-                          <span className={`badge ${pos.direction.toLowerCase()}`}>
-                            {pos.direction}
-                          </span>
-                        </td>
-                        <td className="right num">{Math.abs(Number(pos.shares)).toLocaleString()}</td>
-                        <td className="right num">${Number(pos.entry_price).toFixed(2)}</td>
-                        <td className="right num font-bold">{formatLobs(Number(pos.amount_points))}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            <LivePositions positions={positions} agentId={id} />
           </div>
 
           {/* LOBS History */}

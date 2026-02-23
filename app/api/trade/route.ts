@@ -74,6 +74,32 @@ function getSupabase() {
   )
 }
 
+// Add trading fee to prize pool
+async function addToPrizePool(supabase: any, amount: number) {
+  if (amount <= 0) return
+  
+  try {
+    const { data: stats } = await supabase
+      .from('system_stats')
+      .select('value')
+      .eq('key', 'prize_pool')
+      .single()
+    
+    const currentPool = stats?.value || 0
+    
+    await supabase
+      .from('system_stats')
+      .upsert({ 
+        key: 'prize_pool', 
+        value: currentPool + amount,
+        updated_at: new Date().toISOString()
+      })
+  } catch (e) {
+    // Prize pool tracking is non-critical, don't fail trades
+    console.error('Failed to update prize pool:', e)
+  }
+}
+
 // Check if we're in blackout period (crypto trades 24/7)
 function isBlackoutPeriod(ticker?: string): { blocked: boolean; reason?: string } {
   // Crypto trades 24/7
@@ -319,6 +345,9 @@ export async function POST(request: NextRequest) {
         points: newCashBalance + totalWorking
       }).eq('id', agent.id)
       
+      // Add fee to prize pool
+      await addToPrizePool(supabase, fee)
+      
       // Record trade
       const { data: trade } = await supabase.from('trades').insert({
         agent_id: agent.id,
@@ -405,6 +434,9 @@ export async function POST(request: NextRequest) {
         cash_balance: newCashBalance,
         points: newCashBalance + totalWorking
       }).eq('id', agent.id)
+      
+      // Add close fee to prize pool
+      await addToPrizePool(supabase, closeFee)
       
       // Record trade
       const signedSharesClosed = posDirection === 'SHORT' ? posShares : -posShares
