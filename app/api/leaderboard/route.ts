@@ -62,16 +62,15 @@ export async function GET(request: NextRequest) {
   const showAll = url.searchParams.get('all') === 'true'
   
   try {
-    // Get agents (optionally filter by status)
-    let query = supabase
+    // Get all agents then filter (workaround for query builder issue)
+    const { data: allAgents, error: agentError } = await supabase
       .from('agents')
       .select('id, name, points, cash_balance, status, created_at')
     
-    if (!showAll) {
-      query = query.eq('status', 'active')
-    }
-    
-    const { data: agents, error: agentError } = await query
+    // Filter to active only (unless ?all=true)
+    const agents = showAll 
+      ? allAgents 
+      : allAgents?.filter(a => a.status === 'active')
     
     if (agentError) throw agentError
     
