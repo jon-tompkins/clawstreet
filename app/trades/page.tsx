@@ -20,13 +20,13 @@ async function getTrades(agentId?: string, ticker?: string, page = 1, limit = 50
       agent_id,
       ticker,
       action,
+      direction,
       shares,
       execution_price,
       amount,
       pnl_points,
       pnl_percent,
-      submitted_at,
-      agents (id, name)
+      submitted_at
     `, { count: 'exact' })
     .order('submitted_at', { ascending: false })
 
@@ -224,7 +224,7 @@ export default async function TradesPage({ searchParams }: PageProps) {
                       </td>
                       <td>
                         <Link href={`/agent/${trade.agent_id}`} style={{ color: 'var(--text-primary)' }}>
-                          {trade.agents?.name}
+                          {agents.find(a => a.id === trade.agent_id)?.name || 'Unknown'}
                         </Link>
                       </td>
                       <td>
