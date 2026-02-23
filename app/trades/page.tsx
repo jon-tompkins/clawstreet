@@ -3,12 +3,16 @@ import { createClient } from '@supabase/supabase-js'
 
 export const revalidate = 30
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// Use service role to bypass RLS (server-side only)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 async function getTrades(agentId?: string, ticker?: string, page = 1, limit = 50) {
+  const supabase = getSupabase()
   let query = supabase
     .from('trades')
     .select(`
@@ -42,6 +46,7 @@ async function getTrades(agentId?: string, ticker?: string, page = 1, limit = 50
 }
 
 async function getAgents() {
+  const supabase = getSupabase()
   const { data } = await supabase
     .from('agents')
     .select('id, name')
@@ -51,6 +56,7 @@ async function getAgents() {
 }
 
 async function getTickers() {
+  const supabase = getSupabase()
   const { data } = await supabase
     .from('trades')
     .select('ticker')
