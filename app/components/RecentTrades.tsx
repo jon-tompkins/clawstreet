@@ -15,6 +15,7 @@ interface Trade {
   created_at: string
   pnl_points?: number | null
   revealed?: boolean
+  commitment_hash?: string | null  // If present, was a commit-reveal trade
 }
 
 interface RecentTradesProps {
@@ -64,28 +65,31 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
       <div style={{ maxHeight: '450px', overflowY: 'auto' }}>
         {currentTrades.map((trade: Trade) => {
           const isClosingTrade = trade.pnl_points !== null && trade.pnl_points !== undefined
-          const isCommitted = trade.revealed === false || (!trade.ticker && !trade.execution_price)
-          const tradeValue = isCommitted 
-            ? (trade.amount || 0)
-            : Math.abs(Number(trade.shares || 0) * Number(trade.execution_price || 0))
+          const isCommitReveal = !!trade.commitment_hash
+          const isUnrevealed = trade.revealed === false && isCommitReveal
+          const hasTradeDetails = trade.ticker && trade.execution_price
+          
+          // Calculate trade value
+          const tradeValue = hasTradeDetails 
+            ? Math.abs(Number(trade.shares || 0) * Number(trade.execution_price || 0))
+            : (trade.amount || 0)
           const shares = Number(trade.shares || 0)
           
-          // Determine trade type for display
-          let displayAction = trade.action
+          // Determine display action and badge style
+          let displayAction = trade.direction || trade.action
           let badgeStyle: React.CSSProperties = {}
           
-          if (isCommitted) {
-            // Committed trade - show direction
-            displayAction = trade.direction || trade.action
-            badgeStyle = { background: '#666', color: '#fff' }
-          } else if (trade.action === 'SELL' && shares < 0 && !isClosingTrade) {
-            // Opening short position
+          if (isUnrevealed) {
+            badgeStyle = { background: '#444', color: '#aaa' }
+          } else if (displayAction === 'SHORT' || (trade.action === 'OPEN' && trade.direction === 'SHORT')) {
             displayAction = 'SHORT'
             badgeStyle = { background: '#8b0000', color: '#fff' }
-          } else if (trade.action === 'BUY' && shares > 0 && isClosingTrade) {
-            // Closing short position (cover)
-            displayAction = 'COVER'
+          } else if (displayAction === 'LONG' || trade.action === 'OPEN') {
+            displayAction = 'LONG'
             badgeStyle = { background: '#006400', color: '#fff' }
+          } else if (trade.action === 'CLOSE') {
+            displayAction = 'CLOSE'
+            badgeStyle = { background: '#333', color: '#fff' }
           }
           
           return (
@@ -96,25 +100,39 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className={`badge ${trade.action.toLowerCase()}`} style={badgeStyle}>{displayAction}</span>
-                  {isCommitted ? (
-                    <span style={{ color: '#888', fontStyle: 'italic' }}>🔒 Hidden</span>
+                  <span className={`badge`} style={badgeStyle}>{displayAction}</span>
+                  {isUnrevealed ? (
+                    <span style={{ color: '#888' }}>🔒 ???</span>
                   ) : (
-                    <span className="ticker">{trade.ticker}</span>
+                    <span className="ticker">{trade.ticker || '???'}</span>
                   )}
                   <span style={{ color: 'var(--bb-orange)', fontWeight: 600 }}>{formatLobs(tradeValue)} lobs</span>
+                  {isCommitReveal && (
+                    <span style={{ 
+                      fontSize: '8px', 
+                      background: '#2a2a4a', 
+                      color: '#8888ff', 
+                      padding: '1px 4px', 
+                      borderRadius: '3px',
+                      fontWeight: 600
+                    }}>C-R</span>
+                  )}
                 </span>
                 <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
                   {formatTime(trade.submitted_at || trade.created_at)}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {isCommitted ? (
-                  <span style={{ color: '#888', fontSize: '10px' }}>Committed • reveals on close or Friday</span>
-                ) : (
+                {isUnrevealed ? (
+                  <span style={{ color: '#666', fontSize: '10px' }}>
+                    {trade.direction} position • reveals on close
+                  </span>
+                ) : hasTradeDetails ? (
                   <span style={{ color: 'var(--text-muted)' }}>
                     {Math.abs(shares).toFixed(2)} sh @ ${Number(trade.execution_price).toFixed(2)}
                   </span>
+                ) : (
+                  <span style={{ color: '#666', fontSize: '10px' }}>Details pending</span>
                 )}
                 {isClosingTrade ? (
                   <span style={{ fontWeight: 700 }} className={
@@ -123,7 +141,7 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
                   }>
                     P&L: {formatPnl(Number(trade.pnl_points))}
                   </span>
-                ) : !isCommitted ? (
+                ) : !isUnrevealed && trade.action === 'OPEN' ? (
                   <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>OPEN</span>
                 ) : null}
               </div>
