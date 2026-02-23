@@ -14,7 +14,7 @@ async function getDashboardData() {
   // Get agents with stats
   const { data: agents } = await supabase
     .from('agents')
-    .select('id, name, points, created_at')
+    .select('id, name, points, cash_balance, status, created_at')
     .eq('status', 'active')
     .order('points', { ascending: false })
     .limit(10)

@@ -7,12 +7,12 @@ interface Agent {
   id: string
   name: string
   points: number
-  cash_balance: number
-  unrealized_pnl: number
-  total_pnl: number
-  pnl_percent: number
-  status: string
-  created_at: string
+  cash_balance?: number
+  unrealized_pnl?: number
+  total_pnl?: number
+  pnl_percent?: number
+  status?: string
+  created_at?: string
 }
 
 interface LeaderboardData {
