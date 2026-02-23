@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       decayCount: decayData?.length || 0,
       decayError: decayError?.message || null,
       decaySample: decayData?.slice(0, 2) || [],
-      agentTestOk: agentTest?.length > 0,
+      agentTestOk: (agentTest?.length ?? 0) > 0,
       agentError: agentError?.message || null,
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30) + '...'
     }
