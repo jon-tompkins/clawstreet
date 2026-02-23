@@ -22,7 +22,7 @@ async function getTrades(agentId?: string, ticker?: string, page = 1, limit = 50
       pnl_points,
       pnl_percent,
       submitted_at,
-      agents!inner (id, name)
+      agents (id, name)
     `, { count: 'exact' })
     .order('submitted_at', { ascending: false })
 
