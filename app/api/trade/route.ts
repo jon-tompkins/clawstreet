@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic'
 
 const STARTING_BALANCE = 1000000
 const MAX_TRADES_PER_DAY = 10
+const TRADING_FEE_RATE = 0.002  // 0.2% fee per trade
 const BLACKOUT_START_HOUR = 15  // 3 PM EST
 const BLACKOUT_START_MIN = 58   // 3:58 PM EST
 const BLACKOUT_END_HOUR = 16    // 4 PM EST (reopens after close prices pulled)
@@ -266,10 +267,14 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
       }
       
-      // Check balance
-      if (lobs > cashBalance) {
+      // Calculate fee
+      const fee = Math.round(lobs * TRADING_FEE_RATE)
+      const totalCost = lobs + fee
+      
+      // Check balance (including fee)
+      if (totalCost > cashBalance) {
         return NextResponse.json({ 
-          error: `Insufficient balance. Have ${cashBalance.toLocaleString()} lobs, need ${lobs.toLocaleString()}` 
+          error: `Insufficient balance. Have ${cashBalance.toLocaleString()} lobs, need ${totalCost.toLocaleString()} (${lobs.toLocaleString()} + ${fee.toLocaleString()} fee)` 
         }, { status: 400 })
       }
       
@@ -289,8 +294,8 @@ export async function POST(request: NextRequest) {
       
       if (posError) throw posError
       
-      // Update cash balance
-      const newCashBalance = cashBalance - lobs
+      // Update cash balance (deduct amount + fee)
+      const newCashBalance = cashBalance - totalCost
       const newTotalPoints = newCashBalance + lobs // working lobs = lobs just invested
       
       // Get all positions for accurate total
@@ -329,8 +334,9 @@ export async function POST(request: NextRequest) {
           shares: Math.abs(shares).toFixed(4),
           price: price,
           amount: lobs,
+          fee: fee,
         },
-        result: `OPEN ${upperDirection} ${upperTicker}: ${Math.abs(shares).toFixed(2)} shares @ $${price.toFixed(2)} (${lobs.toLocaleString()} lobs)`,
+        result: `OPEN ${upperDirection} ${upperTicker}: ${Math.abs(shares).toFixed(2)} shares @ $${price.toFixed(2)} (${lobs.toLocaleString()} lobs, ${fee.toLocaleString()} fee)`,
         balance: {
           cash: Math.round(newCashBalance),
           working: Math.round(totalWorking),
@@ -369,11 +375,15 @@ export async function POST(request: NextRequest) {
       
       const pnlPercent = (pnl / costBasis) * 100
       
+      // Calculate fee on close
+      const closeFee = Math.round(closeValue * TRADING_FEE_RATE)
+      const netCloseValue = closeValue - closeFee
+      
       // Delete position
       await supabase.from('positions').delete().eq('id', existingPosition.id)
       
-      // Update cash balance (return close value)
-      const newCashBalance = cashBalance + closeValue
+      // Update cash balance (return close value minus fee)
+      const newCashBalance = cashBalance + netCloseValue
       
       // Get remaining positions for total
       const { data: remainingPositions } = await supabase
@@ -395,7 +405,7 @@ export async function POST(request: NextRequest) {
         ticker: upperTicker,
         action: 'CLOSE',
         direction: posDirection,
-        amount: Math.round(closeValue),
+        amount: Math.round(netCloseValue),
         shares: signedSharesClosed,
         execution_price: price,
         close_price: price,
@@ -408,6 +418,10 @@ export async function POST(request: NextRequest) {
       
       const pnlSign = pnl >= 0 ? '+' : ''
       
+      // Net P&L after fee
+      const netPnl = pnl - closeFee
+      const netPnlSign = netPnl >= 0 ? '+' : ''
+      
       return NextResponse.json({
         success: true,
         trade: {
@@ -418,10 +432,11 @@ export async function POST(request: NextRequest) {
           shares: posShares.toFixed(4),
           entry_price: entryPrice,
           close_price: price,
-          pnl: Math.round(pnl),
+          pnl: Math.round(netPnl),
           pnl_percent: Number(pnlPercent.toFixed(2)),
+          fee: closeFee,
         },
-        result: `CLOSE ${posDirection} ${upperTicker}: ${posShares.toFixed(2)} shares @ $${price.toFixed(2)} | P&L: ${pnlSign}${Math.round(pnl).toLocaleString()} lobs (${pnlSign}${pnlPercent.toFixed(2)}%)`,
+        result: `CLOSE ${posDirection} ${upperTicker}: ${posShares.toFixed(2)} shares @ $${price.toFixed(2)} | P&L: ${netPnlSign}${Math.round(netPnl).toLocaleString()} lobs (${pnlSign}${pnlPercent.toFixed(2)}%, ${closeFee.toLocaleString()} fee)`,
         balance: {
           cash: Math.round(newCashBalance),
           working: Math.round(totalWorking),
