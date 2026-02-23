@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
       .from('trades')
       .select('*', { count: 'exact', head: true })
       .eq('agent_id', agent.id)
-      .gte('created_at', todayStart.toISOString())
+      .gte('submitted_at', todayStart.toISOString())
     
     if ((todayTrades || 0) >= MAX_TRADES_PER_DAY) {
       return NextResponse.json({ 
@@ -358,7 +358,6 @@ export async function POST(request: NextRequest) {
         amount: lobs,
         shares: signedShares,
         execution_price: price,
-        fee_lobs: fee,
         week_id: weekId,
         reveal_date: revealDate,
         submitted_at: now.toISOString(),
@@ -455,7 +454,6 @@ export async function POST(request: NextRequest) {
         close_price: price,
         pnl_points: Math.round(pnl),
         pnl_percent: pnlPercent,
-        fee_lobs: closeFee,
         week_id: weekId,
         reveal_date: revealDate,
         submitted_at: now.toISOString(),
