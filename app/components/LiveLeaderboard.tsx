@@ -122,8 +122,8 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
                     <td className={`right num font-bold ${pnl.isPositive ? 'text-green' : 'text-red'}`}>
                       {pnl.value}
                     </td>
-                    <td className={`right num font-bold ${agent.pnl_percent >= 0 ? 'text-green' : 'text-red'}`}>
-                      {agent.pnl_percent >= 0 ? '+' : ''}{agent.pnl_percent.toFixed(1)}%
+                    <td className={`right num font-bold ${(agent.pnl_percent ?? 0) >= 0 ? 'text-green' : 'text-red'}`}>
+                      {(agent.pnl_percent ?? 0) >= 0 ? '+' : ''}{(agent.pnl_percent ?? 0).toFixed(1)}%
                     </td>
                   </tr>
                 )
