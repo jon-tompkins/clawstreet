@@ -48,7 +48,7 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
     }
 
     fetchPrices()
-    const interval = setInterval(fetchPrices, 60000) // Update every minute
+    const interval = setInterval(fetchPrices, 30000) // Update every 30 seconds
 
     return () => clearInterval(interval)
   }, [tickers])
