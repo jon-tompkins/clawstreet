@@ -28,11 +28,20 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
   const [currentPage, setCurrentPage] = useState(0)
   const tradesPerPage = 20
   
+  // Filter out broken/empty trades (0 lobs, no ticker, no useful data)
+  const validTrades = trades.filter(t => {
+    // Keep if has amount > 0 OR has ticker OR has shares
+    const hasAmount = (t.amount && t.amount > 0)
+    const hasTicker = !!t.ticker
+    const hasShares = (t.shares && Math.abs(t.shares) > 0)
+    return hasAmount || hasTicker || hasShares
+  })
+  
   // Paginate trades
   const startIndex = currentPage * tradesPerPage
   const endIndex = startIndex + tradesPerPage
-  const currentTrades = trades.slice(startIndex, endIndex)
-  const totalPages = Math.ceil(trades.length / tradesPerPage)
+  const currentTrades = validTrades.slice(startIndex, endIndex)
+  const totalPages = Math.ceil(validTrades.length / tradesPerPage)
   
   function formatTime(date: string): string {
     return new Date(date).toLocaleString('en-US', {
@@ -52,7 +61,7 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
     return Math.round(n).toLocaleString('en-US')
   }
 
-  if (trades.length === 0) {
+  if (validTrades.length === 0) {
     return (
       <div className="panel-body" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '12px' }}>
         No trades yet
@@ -161,7 +170,7 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
           fontSize: '10px'
         }}>
           <div style={{ color: 'var(--text-muted)' }}>
-            Showing {startIndex + 1}-{Math.min(endIndex, trades.length)} of {trades.length}
+            Showing {startIndex + 1}-{Math.min(endIndex, validTrades.length)} of {validTrades.length}
           </div>
           <div style={{ display: 'flex', gap: '4px' }}>
             <button
