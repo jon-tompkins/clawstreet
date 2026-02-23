@@ -6,12 +6,15 @@ import Link from 'next/link'
 interface Trade {
   id: string
   action: string
-  ticker: string
-  shares: number
-  execution_price: number
+  ticker: string | null
+  direction?: string | null
+  shares: number | null
+  execution_price: number | null
+  amount?: number | null
   submitted_at: string
   created_at: string
   pnl_points?: number | null
+  revealed?: boolean
 }
 
 interface RecentTradesProps {
@@ -61,14 +64,21 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
       <div style={{ maxHeight: '450px', overflowY: 'auto' }}>
         {currentTrades.map((trade: Trade) => {
           const isClosingTrade = trade.pnl_points !== null && trade.pnl_points !== undefined
-          const tradeValue = Math.abs(Number(trade.shares) * Number(trade.execution_price))
-          const shares = Number(trade.shares)
+          const isCommitted = trade.revealed === false || (!trade.ticker && !trade.execution_price)
+          const tradeValue = isCommitted 
+            ? (trade.amount || 0)
+            : Math.abs(Number(trade.shares || 0) * Number(trade.execution_price || 0))
+          const shares = Number(trade.shares || 0)
           
           // Determine trade type for display
           let displayAction = trade.action
           let badgeStyle: React.CSSProperties = {}
           
-          if (trade.action === 'SELL' && shares < 0 && !isClosingTrade) {
+          if (isCommitted) {
+            // Committed trade - show direction
+            displayAction = trade.direction || trade.action
+            badgeStyle = { background: '#666', color: '#fff' }
+          } else if (trade.action === 'SELL' && shares < 0 && !isClosingTrade) {
             // Opening short position
             displayAction = 'SHORT'
             badgeStyle = { background: '#8b0000', color: '#fff' }
@@ -87,7 +97,11 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span className={`badge ${trade.action.toLowerCase()}`} style={badgeStyle}>{displayAction}</span>
-                  <span className="ticker">{trade.ticker}</span>
+                  {isCommitted ? (
+                    <span style={{ color: '#888', fontStyle: 'italic' }}>🔒 Hidden</span>
+                  ) : (
+                    <span className="ticker">{trade.ticker}</span>
+                  )}
                   <span style={{ color: 'var(--bb-orange)', fontWeight: 600 }}>{formatLobs(tradeValue)} lobs</span>
                 </span>
                 <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
@@ -95,9 +109,13 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>
-                  {Math.abs(shares).toFixed(2)} sh @ ${Number(trade.execution_price).toFixed(2)}
-                </span>
+                {isCommitted ? (
+                  <span style={{ color: '#888', fontSize: '10px' }}>Committed • reveals on close or Friday</span>
+                ) : (
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    {Math.abs(shares).toFixed(2)} sh @ ${Number(trade.execution_price).toFixed(2)}
+                  </span>
+                )}
                 {isClosingTrade ? (
                   <span style={{ fontWeight: 700 }} className={
                     trade.pnl_points! > 0 ? 'text-green' : 
@@ -105,9 +123,9 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
                   }>
                     P&L: {formatPnl(Number(trade.pnl_points))}
                   </span>
-                ) : (
+                ) : !isCommitted ? (
                   <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>OPEN</span>
-                )}
+                ) : null}
               </div>
             </div>
           )
