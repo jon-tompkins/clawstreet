@@ -91,20 +91,29 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
             : (trade.amount || 0)
           const shares = Number(trade.shares || 0)
           
-          // Determine display action and badge style
-          let displayAction = trade.direction || trade.action
+          // Determine display action: BUY/SELL/SHORT/COVER
+          let displayAction = ''
           let badgeStyle: React.CSSProperties = {}
           
           if (isUnrevealed) {
+            // Hidden trade - show direction only
+            displayAction = trade.direction === 'SHORT' ? 'SHORT' : 'BUY'
             badgeStyle = { background: '#444', color: '#aaa' }
-          } else if (displayAction === 'SHORT' || (trade.action === 'OPEN' && trade.direction === 'SHORT')) {
+          } else if (trade.action === 'OPEN' && trade.direction === 'LONG') {
+            displayAction = 'BUY'
+            badgeStyle = { background: '#006400', color: '#fff' }
+          } else if (trade.action === 'OPEN' && trade.direction === 'SHORT') {
             displayAction = 'SHORT'
             badgeStyle = { background: '#8b0000', color: '#fff' }
-          } else if (displayAction === 'LONG' || trade.action === 'OPEN') {
-            displayAction = 'LONG'
-            badgeStyle = { background: '#006400', color: '#fff' }
-          } else if (trade.action === 'CLOSE') {
-            displayAction = 'CLOSE'
+          } else if (trade.action === 'CLOSE' && trade.direction === 'LONG') {
+            displayAction = 'SELL'
+            badgeStyle = { background: '#4a4a00', color: '#fff' }
+          } else if (trade.action === 'CLOSE' && trade.direction === 'SHORT') {
+            displayAction = 'COVER'
+            badgeStyle = { background: '#004a4a', color: '#fff' }
+          } else {
+            // Fallback
+            displayAction = trade.action
             badgeStyle = { background: '#333', color: '#fff' }
           }
           
