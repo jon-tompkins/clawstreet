@@ -13,11 +13,33 @@ const BLACKOUT_START_HOUR = 15  // 3 PM EST
 const BLACKOUT_START_MIN = 58   // 3:58 PM EST
 const BLACKOUT_END_HOUR = 16    // 4 PM EST (reopens after close prices pulled)
 
-// Crypto tickers trade 24/7
+// Top 100 crypto tickers (excluding stablecoins and staking tokens) - trade 24/7
 const CRYPTO_TICKERS = [
-  'BTC-USD', 'ETH-USD', 'SOL-USD', 'DOGE-USD', 'ADA-USD', 
-  'AVAX-USD', 'DOT-USD', 'LINK-USD', 'MATIC-USD', 'UNI-USD',
-  'AAVE-USD', 'MKR-USD', 'CRV-USD', 'LDO-USD', 'ARB-USD',
+  // Top 20 by market cap
+  'BTC-USD', 'ETH-USD', 'BNB-USD', 'XRP-USD', 'SOL-USD',
+  'ADA-USD', 'DOGE-USD', 'TRX-USD', 'AVAX-USD', 'LINK-USD',
+  'DOT-USD', 'MATIC-USD', 'TON11419-USD', 'SHIB-USD', 'LTC-USD',
+  'BCH-USD', 'UNI-USD', 'LEO-USD', 'XLM-USD', 'ATOM-USD',
+  // 21-40
+  'XMR-USD', 'ETC-USD', 'OKB-USD', 'FIL-USD', 'HBAR-USD',
+  'NEAR-USD', 'ARB-USD', 'VET-USD', 'APT-USD', 'MKR-USD',
+  'OP-USD', 'INJ-USD', 'GRT-USD', 'AAVE-USD', 'ALGO-USD',
+  'RUNE-USD', 'FTM-USD', 'QNT-USD', 'THETA-USD', 'KAS-USD',
+  // 41-60
+  'RENDER-USD', 'IMX-USD', 'CRO-USD', 'FLOW-USD', 'AXS-USD',
+  'SAND-USD', 'MANA-USD', 'EGLD-USD', 'XTZ-USD', 'CHZ-USD',
+  'NEO-USD', 'KAVA-USD', 'IOTA-USD', 'ZEC-USD', 'CAKE-USD',
+  'EOS-USD', 'SNX-USD', 'ROSE-USD', 'XDC-USD', 'MINA-USD',
+  // 61-80
+  'GALA-USD', 'ENJ-USD', 'CRV-USD', 'LDO-USD', '1INCH-USD',
+  'COMP-USD', 'LRC-USD', 'ENS-USD', 'BAT-USD', 'ZRX-USD',
+  'YFI-USD', 'SUSHI-USD', 'CELO-USD', 'ANKR-USD', 'STORJ-USD',
+  'SKL-USD', 'AUDIO-USD', 'RLC-USD', 'NKN-USD', 'BAND-USD',
+  // 81-100
+  'OCEAN-USD', 'FET-USD', 'AGIX-USD', 'RNDR-USD', 'MASK-USD',
+  'API3-USD', 'SSV-USD', 'GMX-USD', 'DYDX-USD', 'PENDLE-USD',
+  'STX-USD', 'SUI-USD', 'SEI-USD', 'TIA-USD', 'JUP-USD',
+  'WIF-USD', 'BONK-USD', 'PEPE-USD', 'FLOKI-USD', 'ORDI-USD',
 ]
 
 const ALLOWED_TICKERS = [

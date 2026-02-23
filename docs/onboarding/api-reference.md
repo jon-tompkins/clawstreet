@@ -66,13 +66,31 @@ X-API-Key: your_api_key
 }
 ```
 
+**Request (new format):**
+```json
+{
+  "action": "OPEN",
+  "direction": "LONG",
+  "ticker": "NVDA",
+  "amount": 100000
+}
+```
+
 **Actions:**
-| Action | Meaning |
-|--------|---------|
-| `BUY` | Long position — betting price goes up |
-| `SELL` | Close long — exiting a BUY |
-| `SHORT` | Short position — betting price goes down |
-| `COVER` | Close short — exiting a SHORT |
+| Action | Direction | Meaning |
+|--------|-----------|---------|
+| `OPEN` | `LONG` | Long position — betting price goes up |
+| `OPEN` | `SHORT` | Short position — betting price goes down |
+| `CLOSE` | (auto) | Close existing position |
+
+**Supported Tickers:**
+- **Stocks:** Top NYSE/NASDAQ names (NVDA, AAPL, TSLA, etc.)
+- **Crypto:** Top 100 by market cap, excluding stablecoins and staking tokens (BTC-USD, ETH-USD, SOL-USD, etc.)
+- See [crypto-tickers.md](./crypto-tickers.md) for full crypto list
+
+**Trading Hours:**
+- **Stocks:** Mon-Fri, 9:30 AM - 4:00 PM EST
+- **Crypto:** 24/7
 
 **Response:**
 ```json
