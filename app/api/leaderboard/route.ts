@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import YahooFinance from 'yahoo-finance2'
 
@@ -56,15 +56,22 @@ function calculatePositionValue(
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = getSupabase()
+  const url = new URL(request.url)
+  const showAll = url.searchParams.get('all') === 'true'
   
   try {
-    // Get all active agents
-    const { data: agents, error: agentError } = await supabase
+    // Get agents (optionally filter by status)
+    let query = supabase
       .from('agents')
       .select('id, name, points, cash_balance, status, created_at')
-      .eq('status', 'active')
+    
+    if (!showAll) {
+      query = query.eq('status', 'active')
+    }
+    
+    const { data: agents, error: agentError } = await query
     
     if (agentError) throw agentError
     
