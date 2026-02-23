@@ -68,4 +68,4 @@ export async function GET(request: NextRequest) {
     console.error('Prize pool error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
-}
+}// deployed 2026-02-23T21:19:16Z
