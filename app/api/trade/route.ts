@@ -317,23 +317,26 @@ export async function POST(request: NextRequest) {
       const shares = lobs / price
       const signedShares = upperDirection === 'SHORT' ? -shares : shares
       
-      // Create position
-      const { error: posError } = await supabase.from('positions').insert({
+      // Record trade FIRST - trigger creates position automatically
+      const { data: trade, error: tradeError } = await supabase.from('trades').insert({
         agent_id: agent.id,
         ticker: upperTicker,
+        action: 'OPEN',
         direction: upperDirection,
+        amount: lobs,
         shares: signedShares,
-        entry_price: price,
-        amount_points: lobs,
-      })
+        execution_price: price,
+        week_id: weekId,
+        reveal_date: revealDate,
+        submitted_at: now.toISOString(),
+      }).select().single()
       
-      if (posError) throw posError
+      if (tradeError) throw tradeError
       
       // Update cash balance (deduct amount + fee)
       const newCashBalance = cashBalance - totalCost
-      const newTotalPoints = newCashBalance + lobs // working lobs = lobs just invested
       
-      // Get all positions for accurate total
+      // Get all positions for accurate total (includes new position from trigger)
       const { data: allPositions } = await supabase
         .from('positions')
         .select('amount_points')
@@ -347,20 +350,6 @@ export async function POST(request: NextRequest) {
       
       // Add fee to prize pool
       await addToPrizePool(supabase, fee)
-      
-      // Record trade
-      const { data: trade } = await supabase.from('trades').insert({
-        agent_id: agent.id,
-        ticker: upperTicker,
-        action: 'OPEN',
-        direction: upperDirection,
-        amount: lobs,
-        shares: signedShares,
-        execution_price: price,
-        week_id: weekId,
-        reveal_date: revealDate,
-        submitted_at: now.toISOString(),
-      }).select().single()
       
       return NextResponse.json({
         success: true,
@@ -416,32 +405,10 @@ export async function POST(request: NextRequest) {
       // Calculate fee on close
       const closeFee = Math.round(closeValue * TRADING_FEE_RATE)
       const netCloseValue = closeValue - closeFee
-      
-      // Delete position
-      await supabase.from('positions').delete().eq('id', existingPosition.id)
-      
-      // Update cash balance (return close value minus fee)
-      const newCashBalance = cashBalance + netCloseValue
-      
-      // Get remaining positions for total
-      const { data: remainingPositions } = await supabase
-        .from('positions')
-        .select('amount_points')
-        .eq('agent_id', agent.id)
-      const totalWorking = remainingPositions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
-      
-      await supabase.from('agents').update({ 
-        cash_balance: newCashBalance,
-        points: newCashBalance + totalWorking
-      }).eq('id', agent.id)
-      
-      // Add close fee to prize pool
-      await addToPrizePool(supabase, closeFee)
-      
-      // Record trade
       const signedSharesClosed = posDirection === 'SHORT' ? posShares : -posShares
       
-      const { data: trade } = await supabase.from('trades').insert({
+      // Record trade FIRST - trigger deletes position automatically
+      const { data: trade, error: tradeError } = await supabase.from('trades').insert({
         agent_id: agent.id,
         ticker: upperTicker,
         action: 'CLOSE',
@@ -456,6 +423,26 @@ export async function POST(request: NextRequest) {
         reveal_date: revealDate,
         submitted_at: now.toISOString(),
       }).select().single()
+      
+      if (tradeError) throw tradeError
+      
+      // Update cash balance (return close value minus fee)
+      const newCashBalance = cashBalance + netCloseValue
+      
+      // Get remaining positions for total (closed position removed by trigger)
+      const { data: remainingPositions } = await supabase
+        .from('positions')
+        .select('amount_points')
+        .eq('agent_id', agent.id)
+      const totalWorking = remainingPositions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
+      
+      await supabase.from('agents').update({ 
+        cash_balance: newCashBalance,
+        points: newCashBalance + totalWorking
+      }).eq('id', agent.id)
+      
+      // Add close fee to prize pool
+      await addToPrizePool(supabase, closeFee)
       
       const pnlSign = pnl >= 0 ? '+' : ''
       

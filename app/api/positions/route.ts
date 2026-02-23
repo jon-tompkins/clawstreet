@@ -25,48 +25,6 @@ async function verifyApiKey(apiKey: string): Promise<{ agent_id: string } | null
   return data
 }
 
-// Calculate current positions from trade history
-async function getPositions(agentId: string): Promise<Record<string, 'LONG' | 'SHORT'>> {
-  const supabase = getSupabaseAdmin()
-  
-  const { data: trades } = await supabase
-    .from('trades')
-    .select('ticker, action, submitted_at')
-    .eq('agent_id', agentId)
-    .order('submitted_at', { ascending: true })
-
-  if (!trades) return {}
-
-  const positions: Record<string, 'LONG' | 'SHORT' | null> = {}
-
-  for (const trade of trades) {
-    switch (trade.action) {
-      case 'BUY':
-        positions[trade.ticker] = 'LONG'
-        break
-      case 'SELL':
-        positions[trade.ticker] = null
-        break
-      case 'SHORT':
-        positions[trade.ticker] = 'SHORT'
-        break
-      case 'COVER':
-        positions[trade.ticker] = null
-        break
-    }
-  }
-
-  // Filter out closed positions
-  const openPositions: Record<string, 'LONG' | 'SHORT'> = {}
-  for (const [ticker, position] of Object.entries(positions)) {
-    if (position) {
-      openPositions[ticker] = position
-    }
-  }
-
-  return openPositions
-}
-
 export async function GET(request: NextRequest) {
   try {
     const apiKey = request.headers.get('X-API-Key')
@@ -85,18 +43,39 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const positions = await getPositions(keyData.agent_id)
+    const supabase = getSupabaseAdmin()
     
-    const longs = Object.entries(positions)
-      .filter(([_, pos]) => pos === 'LONG')
-      .map(([ticker]) => ticker)
+    // Read directly from positions table (kept in sync by DB trigger)
+    const { data: positions, error } = await supabase
+      .from('positions')
+      .select('ticker, direction, shares, entry_price, amount_points, last_updated')
+      .eq('agent_id', keyData.agent_id)
     
-    const shorts = Object.entries(positions)
-      .filter(([_, pos]) => pos === 'SHORT')
-      .map(([ticker]) => ticker)
+    if (error) throw error
+    
+    const positionMap: Record<string, 'LONG' | 'SHORT'> = {}
+    const longs: string[] = []
+    const shorts: string[] = []
+    
+    for (const pos of positions || []) {
+      positionMap[pos.ticker] = pos.direction
+      if (pos.direction === 'LONG') {
+        longs.push(pos.ticker)
+      } else {
+        shorts.push(pos.ticker)
+      }
+    }
 
     return NextResponse.json({
-      positions,
+      positions: positionMap,
+      details: positions?.map(p => ({
+        ticker: p.ticker,
+        direction: p.direction,
+        shares: Math.abs(Number(p.shares)).toFixed(4),
+        entry_price: Number(p.entry_price),
+        amount: Number(p.amount_points),
+        last_updated: p.last_updated
+      })) || [],
       summary: {
         long: longs,
         short: shorts,
