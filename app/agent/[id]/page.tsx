@@ -130,13 +130,10 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
     <div className="container" style={{ paddingTop: '8px' }}>
       {/* Agent Header */}
       <div className="panel" style={{ marginBottom: '12px' }}>
-        <div style={{ 
+        <div className="agent-header" style={{ 
           padding: '16px 20px',
           background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
-          borderBottom: '2px solid var(--bb-orange)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start'
+          borderBottom: '2px solid var(--bb-orange)'
         }}>
           <div>
             <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--bb-orange)', marginBottom: '4px' }}>
@@ -147,7 +144,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               Rank #{rank} • Joined {formatDate(agent.created_at)}
             </div>
           </div>
-          <div style={{ textAlign: 'right' }}>
+          <div className="agent-header-right">
             <div style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-1px' }} className={totalPnl >= 0 ? 'text-green' : 'text-red'}>
               {formatLobs(totalLobs)}
             </div>
@@ -158,7 +155,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+      <div className="agent-detail-grid">
         {/* Left Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           
@@ -169,7 +166,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               <span className="timestamp">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
             </div>
             <div className="panel-body" style={{ padding: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', textAlign: 'center' }}>
+              <div className="agent-status-grid">
                 <div>
                   <div style={{ fontSize: '22px', fontWeight: 700 }}>{positions.length}</div>
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Positions</div>
@@ -198,7 +195,8 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               </div>
             ) : (
               <div className="panel-body" style={{ padding: 0 }}>
-                <table>
+                <div className="table-wrapper">
+                  <table>
                   <thead>
                     <tr>
                       <th>TICKER</th>
@@ -223,7 +221,8 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             )}
           </div>

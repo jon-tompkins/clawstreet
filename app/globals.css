@@ -477,6 +477,32 @@ tr:hover {
   gap: 12px;
 }
 
+/* Agent Detail Grid */
+.agent-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Agent Header Layout */
+.agent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.agent-header-right {
+  text-align: right;
+}
+
+/* Agent Status Grid */
+.agent-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  text-align: center;
+}
+
 /* Hero Section */
 .hero-content {
   padding: 24px 20px;
@@ -587,6 +613,30 @@ tr:hover {
   .dashboard-grid {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  /* Agent detail grid stacks */
+  .agent-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* Agent header stacks */
+  .agent-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .agent-header-right {
+    align-self: stretch;
+    text-align: left !important;
+  }
+
+  /* Status grid responsive */
+  .agent-status-grid {
+    gap: 12px !important;
+    text-align: left !important;
   }
 
   /* Panels tighter */
