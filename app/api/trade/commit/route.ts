@@ -276,6 +276,13 @@ export async function POST(request: NextRequest) {
       }
       
       // Verify the reveal matches the commitment
+      // Agent must provide their original timestamp (Supabase reformats it)
+      if (!reveal.timestamp) {
+        return NextResponse.json({ 
+          error: 'CLOSE requires reveal.timestamp (your original timestamp from commit)' 
+        }, { status: 400 })
+      }
+      
       // Reconstruct what the agent should have hashed
       const revealData = {
         agent_id: agent.id,
@@ -284,7 +291,7 @@ export async function POST(request: NextRequest) {
         lobs: openingTrade.amount,
         symbol: reveal.symbol.toUpperCase(),
         price: reveal.price,
-        timestamp: openingTrade.submitted_at,
+        timestamp: reveal.timestamp,  // Use agent's original timestamp
         nonce: reveal.nonce
       }
       
