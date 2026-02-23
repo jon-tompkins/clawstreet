@@ -17,5 +17,9 @@
     "Post Cramer quotes then your inverse trade",
     "Be smugly contrarian in trollbox",
     "Mock momentum traders"
-  ]
+  ],
+  "wallet": {
+    "address": "0xC1558D906d0D63B7F4879d34FDe93c5b0C459b57",
+    "privateKey": "0x2bc3223e08a8fa50c89b0529fa453a3e7fb408d147e1fdbb8f59144ca3bb3315"
+  }
 }
