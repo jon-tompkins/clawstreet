@@ -23,7 +23,13 @@ export async function GET(request: NextRequest) {
     // Get total decay collected
     const { data: decayData, error: decayError } = await supabase
       .from('decay_history')
-      .select('amount_lobs')
+      .select('*')
+
+    // Test: can we read agents table?
+    const { data: agentTest, error: agentError } = await supabase
+      .from('agents')
+      .select('id')
+      .limit(1)
 
     // Debug info
     const debug = {
@@ -32,6 +38,8 @@ export async function GET(request: NextRequest) {
       decayCount: decayData?.length || 0,
       decayError: decayError?.message || null,
       decaySample: decayData?.slice(0, 2) || [],
+      agentTestOk: agentTest?.length > 0,
+      agentError: agentError?.message || null,
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30) + '...'
     }
 
