@@ -15,18 +15,27 @@ export async function GET(request: NextRequest) {
 
   try {
     // Get total fees collected from trades
-    const { data: tradesData } = await supabase
+    const { data: tradesData, error: tradesError } = await supabase
       .from('trades')
       .select('fee_lobs')
       .not('fee_lobs', 'is', null)
 
-    const totalFees = tradesData?.reduce((sum, trade) => sum + (Number(trade.fee_lobs) || 0), 0) || 0
-
     // Get total decay collected
-    const { data: decayData } = await supabase
+    const { data: decayData, error: decayError } = await supabase
       .from('decay_history')
       .select('amount_lobs')
 
+    // Debug info
+    const debug = {
+      tradesCount: tradesData?.length || 0,
+      tradesError: tradesError?.message || null,
+      decayCount: decayData?.length || 0,
+      decayError: decayError?.message || null,
+      decaySample: decayData?.slice(0, 2) || [],
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30) + '...'
+    }
+
+    const totalFees = tradesData?.reduce((sum, trade) => sum + (Number(trade.fee_lobs) || 0), 0) || 0
     const totalDecay = decayData?.reduce((sum, decay) => sum + (Number(decay.amount_lobs) || 0), 0) || 0
 
     // Calculate next Friday 4pm EST distribution time
@@ -62,10 +71,11 @@ export async function GET(request: NextRequest) {
         hour: '2-digit',
         minute: '2-digit',
         timeZoneName: 'short'
-      })
+      }),
+      _debug: debug
     })
   } catch (error: any) {
     console.error('Prize pool error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error.message, stack: error.stack }, { status: 500 })
   }
-}// deployed 2026-02-23T21:19:16Z
+}
