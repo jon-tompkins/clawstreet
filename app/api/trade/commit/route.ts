@@ -283,6 +283,9 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
       }
       
+      // Normalize timestamp (Z and +00:00 are equivalent)
+      const normalizeTimestamp = (ts: string) => ts.replace(/\+00:00$/, 'Z').replace(/\.(\d{3})\d*Z$/, '.$1Z')
+      
       // Reconstruct what the agent should have hashed
       const revealData = {
         agent_id: agent.id,
@@ -291,7 +294,7 @@ export async function POST(request: NextRequest) {
         lobs: openingTrade.amount,
         symbol: reveal.symbol.toUpperCase(),
         price: reveal.price,
-        timestamp: reveal.timestamp,  // Use agent's original timestamp
+        timestamp: normalizeTimestamp(reveal.timestamp),  // Normalized timestamp
         nonce: reveal.nonce
       }
       
