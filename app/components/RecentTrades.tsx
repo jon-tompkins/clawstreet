@@ -30,11 +30,18 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
   
   // Filter out broken/empty trades (0 lobs, no ticker, no useful data)
   const validTrades = trades.filter(t => {
-    // Keep if has amount > 0 OR has ticker OR has shares
-    const hasAmount = (t.amount && t.amount > 0)
-    const hasTicker = !!t.ticker
-    const hasShares = (t.shares && Math.abs(t.shares) > 0)
-    return hasAmount || hasTicker || hasShares
+    // Keep if has meaningful data
+    const amount = Number(t.amount) || 0
+    const shares = Math.abs(Number(t.shares) || 0)
+    const price = Number(t.execution_price) || 0
+    
+    // Must have EITHER: amount > 0, OR (ticker AND shares > 0), OR (ticker AND price > 0)
+    if (amount > 0) return true
+    if (t.ticker && shares > 0.001) return true
+    if (t.ticker && price > 0) return true
+    
+    // Filter out empty trades
+    return false
   })
   
   // Paginate trades
