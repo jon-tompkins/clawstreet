@@ -74,51 +74,68 @@ export async function GET(request: NextRequest) {
     
     if (agentError) throw agentError
     
-    // Get all positions
+    // Get all positions (including revealed status)
     const { data: allPositions, error: posError } = await supabase
       .from('positions')
-      .select('agent_id, ticker, direction, shares, entry_price, amount_points')
+      .select('agent_id, ticker, direction, shares, entry_price, amount_points, revealed')
     
     if (posError) throw posError
     
-    // Get unique tickers and fetch prices
-    const tickers = [...new Set(allPositions?.map(p => p.ticker) || [])]
-    const prices = await fetchPrices(tickers)
+    // Get unique tickers from REVEALED positions only (for price fetching)
+    const revealedTickers = [...new Set(
+      allPositions?.filter(p => p.revealed).map(p => p.ticker) || []
+    )]
+    const prices = await fetchPrices(revealedTickers)
     
-    // Calculate mark-to-market for each agent
+    // Calculate LOBS breakdown for each agent
     const leaderboard = agents?.map(agent => {
       const agentPositions = allPositions?.filter(p => p.agent_id === agent.id) || []
       
-      let markToMarket = 0
-      let unrealizedPnl = 0
+      let workingLobs = 0      // Current value of revealed positions
+      let hiddenLobs = 0       // Cost basis of hidden positions
+      let unrealizedPnl = 0    // P&L on revealed positions only
       
       for (const pos of agentPositions) {
-        const currentPrice = prices[pos.ticker]
-        const entryPrice = Number(pos.entry_price)
-        const shares = Math.abs(Number(pos.shares))
         const costBasis = Number(pos.amount_points)
         
-        if (currentPrice) {
-          const currentValue = calculatePositionValue(pos.direction, shares, entryPrice, currentPrice)
-          markToMarket += currentValue
-          unrealizedPnl += (currentValue - costBasis)
+        if (!pos.revealed) {
+          // Hidden position: just count cost basis
+          hiddenLobs += costBasis
         } else {
-          // No price available, use cost basis
-          markToMarket += costBasis
+          // Revealed position: calculate mark-to-market
+          const currentPrice = prices[pos.ticker]
+          const entryPrice = Number(pos.entry_price)
+          const shares = Math.abs(Number(pos.shares))
+          
+          if (currentPrice) {
+            const currentValue = calculatePositionValue(pos.direction, shares, entryPrice, currentPrice)
+            workingLobs += currentValue
+            unrealizedPnl += (currentValue - costBasis)
+          } else {
+            // No price available, use cost basis
+            workingLobs += costBasis
+          }
         }
       }
       
-      const cashBalance = Number(agent.cash_balance) || 0
-      const totalValue = cashBalance + markToMarket
+      const idleLobs = Number(agent.cash_balance) || 0
+      const totalLobs = idleLobs + workingLobs + hiddenLobs
       const startingBalance = 1000000
-      const totalPnl = totalValue - startingBalance
+      const totalPnl = totalLobs - startingBalance
       const pnlPercent = (totalPnl / startingBalance) * 100
       
       return {
         id: agent.id,
         name: agent.name,
-        points: Math.round(totalValue),
-        cash_balance: Math.round(cashBalance),
+        // LOBS breakdown
+        idle_lobs: Math.round(idleLobs),
+        working_lobs: Math.round(workingLobs),
+        hidden_lobs: Math.round(hiddenLobs),
+        total_lobs: Math.round(totalLobs),
+        // Legacy fields (for compatibility)
+        points: Math.round(totalLobs),
+        cash_balance: Math.round(idleLobs),
+        // P&L (revealed only)
         unrealized_pnl: Math.round(unrealizedPnl),
         total_pnl: Math.round(totalPnl),
         pnl_percent: Number(pnlPercent.toFixed(2)),
