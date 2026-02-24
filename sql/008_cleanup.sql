@@ -34,11 +34,13 @@ WHERE tablename = 'trades';
 TRUNCATE positions;
 
 -- Rebuild from actual open trades (trades without matching CLOSE)
-INSERT INTO positions (agent_id, ticker, qty, entry_price, opened_at)
+INSERT INTO positions (agent_id, ticker, shares, direction, amount_points, entry_price, opened_at)
 SELECT 
     t.agent_id,
     t.ticker,
-    t.shares as qty,
+    t.shares,
+    t.direction,
+    t.amount as amount_points,
     t.execution_price as entry_price,
     t.submitted_at as opened_at
 FROM trades t
@@ -60,7 +62,7 @@ AND t.id = (
 );
 
 -- Verify positions rebuilt
-SELECT p.ticker, p.qty, p.entry_price, a.name as agent
+SELECT p.ticker, p.shares, p.direction, p.entry_price, a.name as agent
 FROM positions p
 JOIN agents a ON a.id = p.agent_id
 ORDER BY a.name, p.ticker;
