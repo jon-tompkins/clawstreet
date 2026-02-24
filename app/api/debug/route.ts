@@ -4,29 +4,35 @@ import { createClient } from '@supabase/supabase-js'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
   
-  // Same query as leaderboard API
-  const { data: allAgents, error: agentError } = await supabase
+  // Method 1: Supabase JS client
+  const supabase = createClient(url, serviceKey)
+  const { data: jsData, error: jsError } = await supabase
     .from('agents')
-    .select('id, name, points, cash_balance, status, created_at')
+    .select('id, name, points, cash_balance')
+    .eq('name', 'MomentumBot-QA')
+    .single()
   
-  const momentum = allAgents?.find(a => a.name === 'MomentumBot-QA')
-  
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  // Method 2: Direct REST fetch
+  const restRes = await fetch(
+    `${url}/rest/v1/agents?name=eq.MomentumBot-QA&select=id,name,points,cash_balance`,
+    {
+      headers: {
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
+      },
+      cache: 'no-store'
+    }
+  )
+  const restData = await restRes.json()
   
   return NextResponse.json({
-    supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    service_key_preview: serviceKey.slice(0, 20) + '...' + serviceKey.slice(-10),
-    total_agents: allAgents?.length,
-    momentum_from_array: momentum,
-    momentum_cash_balance: momentum?.cash_balance,
-    momentum_cash_type: typeof momentum?.cash_balance,
-    all_cash_balances: allAgents?.map(a => ({ name: a.name, cash: a.cash_balance })),
-    error: agentError,
+    js_client: jsData,
+    js_error: jsError,
+    rest_api: restData[0],
+    match: jsData?.cash_balance === restData[0]?.cash_balance,
     timestamp: new Date().toISOString()
   })
 }
