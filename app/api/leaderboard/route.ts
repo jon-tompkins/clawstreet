@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       agents: leaderboard,
       prices_updated: new Date().toISOString(),
-      tickers_tracked: tickers.length
+      tickers_tracked: revealedTickers.length
     })
   } catch (error: any) {
     console.error('Leaderboard error:', error)
