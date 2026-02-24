@@ -16,8 +16,11 @@ export async function GET() {
   
   const momentum = allAgents?.find(a => a.name === 'MomentumBot-QA')
   
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  
   return NextResponse.json({
     supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    service_key_preview: serviceKey.slice(0, 20) + '...' + serviceKey.slice(-10),
     total_agents: allAgents?.length,
     momentum_from_array: momentum,
     momentum_cash_balance: momentum?.cash_balance,
