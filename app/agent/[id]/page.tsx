@@ -5,6 +5,9 @@ import LobsChart from './LobsChart'
 import LivePositions from '../../components/LivePositions'
 import RecentTrades from '../../components/RecentTrades'
 import WatchButton from '../../components/WatchButton'
+import YahooFinance from 'yahoo-finance2'
+
+const yahooFinance = new YahooFinance()
 
 export const revalidate = 30
 
@@ -13,6 +16,47 @@ function getSupabaseAdmin() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+}
+
+// Fetch current prices for multiple tickers (same as leaderboard)
+async function fetchPrices(tickers: string[]): Promise<Record<string, number>> {
+  if (tickers.length === 0) return {}
+  
+  const prices: Record<string, number> = {}
+  
+  try {
+    const results = await yahooFinance.quote(tickers)
+    const quotes: any[] = Array.isArray(results) ? results : [results]
+    
+    for (const quote of quotes) {
+      if (quote?.symbol && quote?.regularMarketPrice) {
+        prices[quote.symbol] = quote.regularMarketPrice
+      }
+    }
+  } catch (error) {
+    console.error('Price fetch error:', error)
+  }
+  
+  return prices
+}
+
+// Calculate mark-to-market value of a position (same as leaderboard)
+function calculatePositionValue(
+  direction: string,
+  shares: number,
+  entryPrice: number,
+  currentPrice: number
+): number {
+  const absShares = Math.abs(shares)
+  
+  if (direction === 'LONG') {
+    return absShares * currentPrice
+  } else {
+    // Short: original amount + (entry - current) * shares
+    const originalAmount = absShares * entryPrice
+    const priceDiff = entryPrice - currentPrice
+    return originalAmount + (priceDiff * absShares)
+  }
 }
 
 async function getAgent(id: string) {
@@ -108,15 +152,44 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   const rank = await getAgentRank(id)
   const balanceHistory = await getBalanceHistory(id)
   
-  // LOBS Accounting (must be tight!)
-  // Working LOBS = sum of ALL open positions (revealed + hidden) at cost basis
-  const workingLobs = positions.reduce((sum, p) => sum + Number(p.amount_points), 0)
-  // Hidden LOBS = sum of HIDDEN positions only (cost basis)
-  const hiddenLobs = positions.filter(p => !p.revealed).reduce((sum, p) => sum + Number(p.amount_points), 0)
+  // Get unique tickers from REVEALED positions for price fetching
+  const revealedTickers = [...new Set(
+    positions.filter(p => p.revealed !== false).map(p => p.ticker)
+  )]
+  const prices = await fetchPrices(revealedTickers)
+  
+  // LOBS Accounting (matches leaderboard exactly!)
+  let workingLobs = 0      // Current mark-to-market value of revealed positions
+  let hiddenLobs = 0       // Cost basis of hidden positions
+  let unrealizedPnl = 0    // P&L on revealed positions only
+  
+  for (const pos of positions) {
+    const costBasis = Number(pos.amount_points)
+    
+    if (pos.revealed === false) {
+      // Hidden position: just count cost basis
+      hiddenLobs += costBasis
+    } else {
+      // Revealed position: calculate mark-to-market
+      const currentPrice = prices[pos.ticker]
+      const entryPrice = Number(pos.entry_price)
+      const shares = Math.abs(Number(pos.shares))
+      
+      if (currentPrice) {
+        const currentValue = calculatePositionValue(pos.direction, shares, entryPrice, currentPrice)
+        workingLobs += currentValue
+        unrealizedPnl += (currentValue - costBasis)
+      } else {
+        // No price available, use cost basis
+        workingLobs += costBasis
+      }
+    }
+  }
+  
   // Idle LOBS = cash balance
   const idleLobs = Number(agent.cash_balance) || 0
-  // Total LOBS = idle + working (working includes hidden)
-  const totalLobs = idleLobs + workingLobs
+  // Total LOBS = idle + working (mark-to-market) + hidden (cost basis)
+  const totalLobs = idleLobs + workingLobs + hiddenLobs
   
   // Age in days
   const ageDays = Math.floor((Date.now() - new Date(agent.created_at).getTime()) / (1000 * 60 * 60 * 24))
