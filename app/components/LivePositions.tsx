@@ -9,6 +9,7 @@ interface Position {
   shares: number
   entry_price: number
   amount_points: number
+  revealed?: boolean  // false = hidden trade
 }
 
 interface LivePositionsProps {
@@ -100,23 +101,44 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
           </thead>
           <tbody>
             {positions.map((pos) => {
-              const currentPrice = prices[pos.ticker]?.price
+              const isHidden = pos.revealed === false
+              const currentPrice = isHidden ? null : prices[pos.ticker]?.price
               const currentValue = calculateCurrentValue(pos)
-              const unrealizedPnL = calculateUnrealizedPnL(pos)
+              const unrealizedPnL = isHidden ? null : calculateUnrealizedPnL(pos)
               const shares = Math.abs(pos.shares)
 
               return (
-                <tr key={pos.id}>
-                  <td><span className="ticker">{pos.ticker}</span></td>
+                <tr key={pos.id} style={isHidden ? { opacity: 0.8 } : undefined}>
+                  <td>
+                    {isHidden ? (
+                      <span className="ticker" style={{ color: 'var(--text-muted)' }}>???</span>
+                    ) : (
+                      <span className="ticker">{pos.ticker}</span>
+                    )}
+                  </td>
                   <td>
                     <span className={`badge ${pos.direction.toLowerCase()}`}>
                       {pos.direction}
                     </span>
                   </td>
-                  <td className="right num">{shares.toLocaleString()}</td>
-                  <td className="right num">${Number(pos.entry_price).toFixed(2)}</td>
                   <td className="right num">
-                    {loading && !currentPrice ? (
+                    {isHidden ? (
+                      <span style={{ color: 'var(--text-muted)' }}>???</span>
+                    ) : (
+                      shares.toLocaleString()
+                    )}
+                  </td>
+                  <td className="right num">
+                    {isHidden ? (
+                      <span style={{ color: 'var(--text-muted)' }}>???</span>
+                    ) : (
+                      `$${Number(pos.entry_price).toFixed(2)}`
+                    )}
+                  </td>
+                  <td className="right num">
+                    {isHidden ? (
+                      <span style={{ color: 'var(--text-muted)' }}>???</span>
+                    ) : loading && !currentPrice ? (
                       <span style={{ color: 'var(--text-muted)' }}>...</span>
                     ) : currentPrice ? (
                       <span className={prices[pos.ticker]?.change >= 0 ? 'text-green' : 'text-red'}>
@@ -127,8 +149,14 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
                     )}
                   </td>
                   <td className="right num font-bold">{formatLobs(currentValue)}</td>
-                  <td className={`right num font-bold ${unrealizedPnL >= 0 ? 'text-green' : 'text-red'}`}>
-                    {unrealizedPnL >= 0 ? '+' : ''}{formatLobs(unrealizedPnL)}
+                  <td className={`right num font-bold ${!isHidden && unrealizedPnL !== null ? (unrealizedPnL >= 0 ? 'text-green' : 'text-red') : ''}`}>
+                    {isHidden ? (
+                      <span style={{ color: 'var(--text-muted)' }}>???</span>
+                    ) : unrealizedPnL !== null ? (
+                      `${unrealizedPnL >= 0 ? '+' : ''}${formatLobs(unrealizedPnL)}`
+                    ) : (
+                      '—'
+                    )}
                   </td>
                 </tr>
               )
