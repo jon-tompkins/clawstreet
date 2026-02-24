@@ -26,7 +26,9 @@ async function getTrades(agentId?: string, ticker?: string, page = 1, limit = 50
       amount,
       pnl_points,
       pnl_percent,
-      submitted_at
+      submitted_at,
+      revealed,
+      reveal_date
     `, { count: 'exact' })
     .order('submitted_at', { ascending: false })
 
@@ -206,19 +208,27 @@ export default async function TradesPage({ searchParams }: PageProps) {
               ) : (
                 trades.map((trade: any) => {
                   const shares = Number(trade.shares)
+                  const isHidden = trade.revealed === false
                   const isClosingTrade = trade.pnl_points !== null
                   const isShort = trade.action === 'SELL' && shares < 0 && !isClosingTrade
                   const isCover = trade.action === 'BUY' && shares > 0 && isClosingTrade
-                  const displayAction = isShort ? 'SHORT' : isCover ? 'COVER' : trade.action
-                  const badgeStyle = isShort 
-                    ? { background: '#8b0000', color: '#fff' } 
-                    : isCover 
-                      ? { background: '#006400', color: '#fff' } 
-                      : {}
+                  const displayAction = isHidden ? '🔒' : isShort ? 'SHORT' : isCover ? 'COVER' : trade.action
+                  const badgeStyle = isHidden
+                    ? { background: '#333', color: '#888' }
+                    : isShort 
+                      ? { background: '#8b0000', color: '#fff' } 
+                      : isCover 
+                        ? { background: '#006400', color: '#fff' } 
+                        : {}
                   const tradeValue = Math.abs(shares * Number(trade.execution_price))
                   
+                  // Format reveal date for hidden trades
+                  const revealDateStr = trade.reveal_date 
+                    ? new Date(trade.reveal_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : ''
+                  
                   return (
-                    <tr key={trade.id}>
+                    <tr key={trade.id} style={isHidden ? { opacity: 0.7 } : {}}>
                       <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                         {formatTime(trade.submitted_at)}
                       </td>
@@ -228,19 +238,25 @@ export default async function TradesPage({ searchParams }: PageProps) {
                         </Link>
                       </td>
                       <td>
-                        <span className={`badge ${trade.action.toLowerCase()}`} style={badgeStyle}>{displayAction}</span>
+                        <span className={`badge ${isHidden ? 'hidden' : trade.action.toLowerCase()}`} style={badgeStyle}>{displayAction}</span>
                       </td>
                       <td>
-                        <span className="ticker">{trade.ticker}</span>
+                        {isHidden ? (
+                          <span style={{ color: '#666', fontStyle: 'italic' }} title={`Reveals ${revealDateStr}`}>
+                            ??? <span style={{ fontSize: '9px' }}>({revealDateStr})</span>
+                          </span>
+                        ) : (
+                          <span className="ticker">{trade.ticker}</span>
+                        )}
                       </td>
-                      <td className="right num">
-                        {Math.abs(shares).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      <td className="right num" style={isHidden ? { color: '#666' } : {}}>
+                        {isHidden ? '???' : Math.abs(shares).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                       </td>
-                      <td className="right num">
-                        ${Number(trade.execution_price).toFixed(2)}
+                      <td className="right num" style={isHidden ? { color: '#666' } : {}}>
+                        {isHidden ? '???' : `$${Number(trade.execution_price).toFixed(2)}`}
                       </td>
-                      <td className="right num" style={{ color: 'var(--bb-orange)' }}>
-                        {Math.round(tradeValue).toLocaleString()}
+                      <td className="right num" style={{ color: isHidden ? '#666' : 'var(--bb-orange)' }}>
+                        {isHidden ? '???' : Math.round(tradeValue).toLocaleString()}
                       </td>
                       <td className={`right num font-bold ${
                         trade.pnl_points > 0 ? 'text-green' : 
