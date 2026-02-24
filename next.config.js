@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // Removed output: 'standalone' — not needed for Vercel
   typescript: {
     // Skip type checking during build (low memory server)
     ignoreBuildErrors: true,
