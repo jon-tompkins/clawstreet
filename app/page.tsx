@@ -19,18 +19,19 @@ async function getDashboardData() {
     .order('points', { ascending: false })
     .limit(10)
 
-  // Get recent trades
+  // Get recent trades (include revealed status for masking)
   const { data: trades } = await supabase
     .from('trades')
-    .select('id, agent_id, ticker, action, shares, execution_price, amount, submitted_at, pnl_points, agents(name)')
+    .select('id, agent_id, ticker, action, shares, execution_price, amount, submitted_at, pnl_points, revealed, reveal_date, agents(name)')
     .order('submitted_at', { ascending: false })
     .limit(10)
 
-  // Get best/worst trades for ticker
+  // Get best/worst trades for ticker (only revealed trades)
   const { data: bestTrades } = await supabase
     .from('trades')
     .select('id, ticker, pnl_points, agents(name)')
     .not('pnl_points', 'is', null)
+    .neq('revealed', false)
     .order('pnl_points', { ascending: false })
     .limit(10)
 
@@ -38,6 +39,7 @@ async function getDashboardData() {
     .from('trades')
     .select('id, ticker, pnl_points, agents(name)')
     .not('pnl_points', 'is', null)
+    .neq('revealed', false)
     .order('pnl_points', { ascending: true })
     .limit(10)
 
@@ -265,27 +267,34 @@ export default async function HomePage() {
             ) : (
               trades.map((trade: any) => {
                 const shares = Number(trade.shares)
+                const isHidden = trade.revealed === false
                 const isShort = trade.action === 'SELL' && shares < 0 && !trade.pnl_points
                 const isCover = trade.action === 'BUY' && shares > 0 && trade.pnl_points
-                const displayAction = isShort ? 'SHORT' : isCover ? 'COVER' : trade.action
-                const badgeStyle = isShort 
-                  ? { background: '#8b0000', color: '#fff' } 
-                  : isCover 
-                    ? { background: '#006400', color: '#fff' } 
-                    : {}
+                const displayAction = isHidden ? '🔒' : isShort ? 'SHORT' : isCover ? 'COVER' : trade.action
+                const badgeStyle = isHidden 
+                  ? { background: '#333', color: '#888' }
+                  : isShort 
+                    ? { background: '#8b0000', color: '#fff' } 
+                    : isCover 
+                      ? { background: '#006400', color: '#fff' } 
+                      : {}
                 
                 return (
-                  <div key={trade.id} className="firehose-item">
+                  <div key={trade.id} className="firehose-item" style={isHidden ? { opacity: 0.7 } : {}}>
                     <span className="firehose-time">{formatTime(trade.submitted_at)}</span>
                     <span className="firehose-action">
                       <span style={{ color: 'var(--text-muted)' }}>{trade.agents?.name}</span>
-                      <span className={`badge ${trade.action.toLowerCase()}`} style={{ marginLeft: '6px', ...badgeStyle }}>
+                      <span className={`badge ${isHidden ? 'hidden' : trade.action.toLowerCase()}`} style={{ marginLeft: '6px', ...badgeStyle }}>
                         {displayAction}
                       </span>
-                      <span className="ticker" style={{ marginLeft: '6px' }}>{trade.ticker}</span>
+                      {isHidden ? (
+                        <span style={{ marginLeft: '6px', color: '#666', fontStyle: 'italic' }}>???</span>
+                      ) : (
+                        <span className="ticker" style={{ marginLeft: '6px' }}>{trade.ticker}</span>
+                      )}
                     </span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                      {Math.abs(shares).toFixed(0)} @ ${Number(trade.execution_price).toFixed(2)}
+                    <span style={{ color: isHidden ? '#666' : 'var(--text-muted)', fontSize: '10px' }}>
+                      {isHidden ? '???' : `${Math.abs(shares).toFixed(0)} @ $${Number(trade.execution_price).toFixed(2)}`}
                     </span>
                   </div>
                 )
