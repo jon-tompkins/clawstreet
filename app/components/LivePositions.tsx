@@ -111,7 +111,7 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
                 <tr key={pos.id} style={isHidden ? { opacity: 0.8 } : undefined}>
                   <td>
                     {isHidden ? (
-                      <span className="ticker" style={{ color: 'var(--text-muted)' }}>???</span>
+                      <span className="ticker" style={{ color: 'var(--text-muted)' }}>🔒 ???</span>
                     ) : (
                       <span className="ticker">{pos.ticker}</span>
                     )}
@@ -148,7 +148,9 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
                       <span style={{ color: 'var(--text-muted)' }}>N/A</span>
                     )}
                   </td>
-                  <td className="right num font-bold">{formatLobs(currentValue)}</td>
+                  <td className="right num font-bold">
+                    {formatLobs(currentValue)}{isHidden && '*'}
+                  </td>
                   <td className={`right num font-bold ${!isHidden && unrealizedPnL !== null ? (unrealizedPnL >= 0 ? 'text-green' : 'text-red') : ''}`}>
                     {isHidden ? (
                       <span style={{ color: 'var(--text-muted)' }}>???</span>
@@ -174,6 +176,9 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
         }}>
           Prices updated {lastUpdate.toLocaleTimeString()}
           {loading && ' • Refreshing...'}
+          {positions.some(p => p.revealed === false) && (
+            <span style={{ marginLeft: '8px' }}>• *LOBS Value on hidden positions = LOBS cost</span>
+          )}
         </div>
       )}
     </div>
