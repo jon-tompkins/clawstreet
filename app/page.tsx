@@ -5,12 +5,17 @@ import LiveLeaderboard from './components/LiveLeaderboard'
 
 export const revalidate = 30
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// Use service role for SSR to bypass RLS
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 async function getDashboardData() {
+  const supabase = getSupabase()
+  
   // Get agents with stats
   const { data: agents } = await supabase
     .from('agents')
@@ -26,12 +31,12 @@ async function getDashboardData() {
     .order('submitted_at', { ascending: false })
     .limit(10)
 
-  // Get best/worst trades for ticker (only revealed trades)
+  // Get best/worst trades for ticker (only revealed trades - revealed=true or NULL)
   const { data: bestTrades } = await supabase
     .from('trades')
     .select('id, ticker, pnl_points, agents(name)')
     .not('pnl_points', 'is', null)
-    .neq('revealed', false)
+    .or('revealed.eq.true,revealed.is.null')
     .order('pnl_points', { ascending: false })
     .limit(10)
 
@@ -39,7 +44,7 @@ async function getDashboardData() {
     .from('trades')
     .select('id, ticker, pnl_points, agents(name)')
     .not('pnl_points', 'is', null)
-    .neq('revealed', false)
+    .or('revealed.eq.true,revealed.is.null')
     .order('pnl_points', { ascending: true })
     .limit(10)
 
