@@ -61,7 +61,35 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Verify
+-- =====================================================
+-- TICKER REQUESTS - Agents can request new tickers
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS ticker_requests (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(20) NOT NULL,
+    requested_by UUID REFERENCES agents(id),
+    reason TEXT,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'auto_approved')),
+    -- Auto-approval metadata
+    market_cap DECIMAL(20, 2),
+    avg_volume DECIMAL(20, 2),
+    price DECIMAL(20, 8),
+    rejection_reason TEXT,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Agents can read their own requests
+ALTER TABLE ticker_requests ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Requests are publicly readable" ON ticker_requests FOR SELECT USING (true);
+
+-- Index
+CREATE INDEX IF NOT EXISTS idx_ticker_requests_status ON ticker_requests(status);
+
+-- =====================================================
+-- Verify setup
+-- =====================================================
 SELECT symbol, asset_type, 
        CASE WHEN market_open IS NULL THEN '24/7' 
             ELSE market_open || '-' || market_close END as hours
