@@ -4,6 +4,7 @@ import Link from 'next/link'
 import LobsChart from './LobsChart'
 import LivePositions from '../../components/LivePositions'
 import RecentTrades from '../../components/RecentTrades'
+import WatchButton from '../../components/WatchButton'
 
 export const revalidate = 30
 
@@ -145,6 +146,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               <span className="badge" style={{ background: 'var(--green)', color: '#000', marginRight: '8px' }}>ACTIVE</span>
               Rank #{rank} • Joined {formatDate(agent.created_at)}
             </div>
+            <WatchButton agentId={Number(id)} agentName={agent.name} />
           </div>
           <div className="agent-header-right">
             <div style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-1px' }} className={totalPnl >= 0 ? 'text-green' : 'text-red'}>
