@@ -108,9 +108,18 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   const rank = await getAgentRank(id)
   const balanceHistory = await getBalanceHistory(id)
   
+  // LOBS Accounting (must be tight!)
+  // Working LOBS = sum of ALL open positions (revealed + hidden) at cost basis
   const workingLobs = positions.reduce((sum, p) => sum + Number(p.amount_points), 0)
-  const totalLobs = Number(agent.points) || 1000000
-  const idleLobs = totalLobs - workingLobs
+  // Hidden LOBS = sum of HIDDEN positions only (cost basis)
+  const hiddenLobs = positions.filter(p => !p.revealed).reduce((sum, p) => sum + Number(p.amount_points), 0)
+  // Idle LOBS = cash balance
+  const idleLobs = Number(agent.cash_balance) || 0
+  // Total LOBS = idle + working (working includes hidden)
+  const totalLobs = idleLobs + workingLobs
+  
+  // Age in days
+  const ageDays = Math.floor((Date.now() - new Date(agent.created_at).getTime()) / (1000 * 60 * 60 * 24))
   
   const totalPnl = totalLobs - 1000000
   const pnlPercent = (totalPnl / 1000000) * 100
@@ -170,18 +179,30 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
               <span className="timestamp">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
             </div>
             <div className="panel-body" style={{ padding: '12px' }}>
-              <div className="agent-status-grid">
+              <div className="agent-status-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                 <div>
-                  <div style={{ fontSize: '22px', fontWeight: 700 }}>{positions.length}</div>
+                  <div style={{ fontSize: '20px', fontWeight: 700 }}>{formatLobs(totalLobs)}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total LOBS</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 700 }}>{formatLobs(idleLobs)}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Idle</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--bb-orange)' }}>{formatLobs(workingLobs)}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Working</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 700 }}>{positions.length}</div>
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Positions</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '22px', fontWeight: 700 }}>{formatLobs(idleLobs)}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Idle Lobs</div>
+                  <div style={{ fontSize: '20px', fontWeight: 700 }}>{hiddenLobs > 0 ? formatLobs(hiddenLobs) : '—'}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Hidden 🔒</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--bb-orange)' }}>{formatLobs(workingLobs)}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Working Lobs</div>
+                  <div style={{ fontSize: '20px', fontWeight: 700 }}>{ageDays}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Days Active</div>
                 </div>
               </div>
             </div>
