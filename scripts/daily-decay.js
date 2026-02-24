@@ -30,8 +30,11 @@ async function applyDailyDecay() {
     console.log(`Applied decay to ${data?.length || 0} agents:`)
     
     if (data && data.length > 0) {
+      // RPC returns array of objects - log keys to debug if needed
       for (const result of data) {
-        console.log(`  Agent ${result.agent_id}: -${result.decay_applied} LOBS`)
+        const agentId = result.agent_id ?? result.agentid ?? 'unknown'
+        const decayAmt = result.decay_applied ?? result.decayapplied ?? 100
+        console.log(`  Agent ${agentId}: -${decayAmt} LOBS`)
       }
       
       // Get updated prize pool balance
