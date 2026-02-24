@@ -7,7 +7,20 @@ export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
   
-  const supabase = createClient(url, serviceKey)
+  const supabase = createClient(url, serviceKey, {
+    global: {
+      fetch: (url, options = {}) => {
+        return fetch(url, {
+          ...options,
+          cache: 'no-store',
+          headers: {
+            ...((options as any).headers || {}),
+            'Cache-Control': 'no-cache',
+          }
+        })
+      }
+    }
+  })
   
   // EXACT same query as leaderboard API
   const { data: allAgents, error: agentError } = await supabase
