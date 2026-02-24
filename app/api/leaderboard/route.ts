@@ -151,10 +151,15 @@ export async function GET(request: NextRequest) {
       agents: leaderboard,
       prices_updated: new Date().toISOString(),
       tickers_tracked: revealedTickers.length
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache'
+      }
     })
   } catch (error: any) {
     console.error('Leaderboard error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
-// cache bust 1772090200
+// cache bust 1772091300 - force redeploy
