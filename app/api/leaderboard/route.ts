@@ -12,14 +12,10 @@ function getSupabase() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       global: {
-        fetch: (url, options = {}) => {
-          return fetch(url, {
-            ...options,
+        fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+          return fetch(input, {
+            ...init,
             cache: 'no-store',
-            headers: {
-              ...((options as any).headers || {}),
-              'Cache-Control': 'no-cache',
-            }
           })
         }
       }
