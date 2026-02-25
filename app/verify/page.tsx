@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAccount, useSignMessage, useConnect } from 'wagmi'
 import { injected } from 'wagmi/connectors'
 
-export default function VerifyPage() {
+function VerifyContent() {
   const searchParams = useSearchParams()
   const code = searchParams.get('code')
   
@@ -143,5 +143,17 @@ export default function VerifyPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
+        <div className="text-[#F5A623]">Loading...</div>
+      </div>
+    }>
+      <VerifyContent />
+    </Suspense>
   )
 }
