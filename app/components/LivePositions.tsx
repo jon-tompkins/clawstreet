@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 
 interface Position {
   id: string
@@ -32,16 +32,18 @@ function getSecondsUntilNextRefresh(): number {
 
 export default function LivePositions({ positions, agentId }: LivePositionsProps) {
   const [prices, setPrices] = useState<Record<string, PriceData>>({})
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(getSecondsUntilNextRefresh)
 
-  const tickers = positions.filter(p => p.revealed !== false).map(p => p.ticker)
+  // Memoize tickers to prevent infinite re-renders
+  const tickerString = useMemo(() => {
+    return positions.filter(p => p.revealed !== false).map(p => p.ticker).join(',')
+  }, [positions])
 
-  const fetchPrices = useCallback(async (isInitial = false) => {
-    if (tickers.length === 0) return
-    if (isInitial) setLoading(true)
+  const fetchPrices = useCallback(async () => {
+    if (!tickerString) return
     try {
-      const response = await fetch(`/api/prices?symbols=${tickers.join(',')}`)
+      const response = await fetch(`/api/prices?symbols=${tickerString}`)
       const data = await response.json()
       if (data.prices) {
         setPrices(data.prices)
@@ -49,13 +51,13 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
     } catch (error) {
       console.error('Failed to fetch prices:', error)
     } finally {
-      if (isInitial) setLoading(false)
+      setLoading(false)
     }
-  }, [tickers])
+  }, [tickerString])
 
   // Initial fetch on mount
   useEffect(() => {
-    fetchPrices(true)
+    fetchPrices()
   }, [fetchPrices])
 
   // Countdown timer - synced to global wall clock
@@ -64,8 +66,8 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
       const secondsUntilRefresh = getSecondsUntilNextRefresh()
       
       // Trigger fetch when we hit the refresh boundary
-      if (secondsUntilRefresh === REFRESH_INTERVAL_SECONDS || secondsUntilRefresh === 1) {
-        fetchPrices(false)
+      if (secondsUntilRefresh === REFRESH_INTERVAL_SECONDS) {
+        fetchPrices()
       }
       
       setCountdown(secondsUntilRefresh)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 
 interface Position {
   ticker: string
@@ -45,16 +45,16 @@ export default function LiveStats({
   const [hidden] = useState(initialHidden)
   const [total, setTotal] = useState(initialTotal)
 
-  // Get revealed tickers for price fetching
-  const revealedTickers = positions
-    .filter(p => p.revealed !== false)
-    .map(p => p.ticker)
+  // Memoize ticker string to prevent infinite re-renders
+  const tickerString = useMemo(() => {
+    return positions.filter(p => p.revealed !== false).map(p => p.ticker).join(',')
+  }, [positions])
 
   const fetchPrices = useCallback(async () => {
-    if (revealedTickers.length === 0) return
+    if (!tickerString) return
     
     try {
-      const response = await fetch(`/api/prices?symbols=${revealedTickers.join(',')}`)
+      const response = await fetch(`/api/prices?symbols=${tickerString}`)
       const data = await response.json()
       
       if (data.prices) {
@@ -87,7 +87,7 @@ export default function LiveStats({
     } catch (error) {
       console.error('Failed to fetch prices for stats:', error)
     }
-  }, [revealedTickers, positions, idle, hidden])
+  }, [tickerString, positions, idle, hidden])
 
   // Initial fetch
   useEffect(() => {
@@ -100,7 +100,7 @@ export default function LiveStats({
       const secondsUntilRefresh = getSecondsUntilNextRefresh()
       
       // Trigger fetch when we hit the refresh boundary
-      if (secondsUntilRefresh === REFRESH_INTERVAL_SECONDS || secondsUntilRefresh === 1) {
+      if (secondsUntilRefresh === REFRESH_INTERVAL_SECONDS) {
         fetchPrices()
       }
     }, 1000)
