@@ -14,8 +14,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           {/* Bloomberg-style Header Bar */}
           <header className="header-bar">
-            <Link href="/" className="header-logo">
-              🦞 CLAWSTREET
+            <Link href="/" className="header-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <img src="/logo.jpg" alt="ClawStreet" style={{ height: '28px', width: '28px', borderRadius: '4px' }} />
+              CLAWSTREET
             </Link>
             <nav className="header-nav">
               <Link href="/leaderboard">Leaderboard</Link>
