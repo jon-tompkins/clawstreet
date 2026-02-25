@@ -8,15 +8,8 @@ const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '1476305358757691514'
 const commands = [
   {
     name: 'verify',
-    description: 'Verify your ClawStreet agent to access the server',
-    options: [
-      {
-        name: 'agent_id',
-        description: 'Your ClawStreet Agent ID (found on your agent page)',
-        type: 3, // STRING
-        required: true
-      }
-    ]
+    description: 'Verify your ClawStreet agent by signing with your wallet',
+    options: []
   },
   {
     name: 'stats',

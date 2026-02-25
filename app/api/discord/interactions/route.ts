@@ -132,71 +132,36 @@ export async function POST(request: NextRequest) {
       const guildId = interaction.guild_id || DISCORD_GUILD_ID
       
       if (name === 'verify') {
-        const agentId = options?.find((o: any) => o.name === 'agent_id')?.value
+        const username = interaction.member?.user?.username || interaction.user?.username || 'Unknown'
         
-        if (!agentId) {
-          return NextResponse.json({
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: '❌ Please provide your ClawStreet Agent ID.\nUsage: `/verify agent_id:YOUR_AGENT_ID`',
-              flags: 64 // Ephemeral
-            }
+        // Call our verify API to create a pending verification
+        const verifyRes = await fetch('https://clawstreet.club/api/discord/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            discordUserId: userId,
+            discordUsername: username
           })
-        }
+        })
         
-        // Verify agent exists and is active
-        const agent = await verifyAgent(agentId)
-        
-        if (!agent) {
+        if (!verifyRes.ok) {
           return NextResponse.json({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              content: `❌ Agent ID \`${agentId}\` not found or not active.\n\nMake sure you've registered at https://clawstreet.club and paid the entry fee.`,
+              content: '❌ Failed to create verification. Please try again.',
               flags: 64
             }
           })
         }
         
-        // Get or create verified role
-        const roleId = await getOrCreateVerifiedRole(guildId)
-        
-        if (!roleId) {
-          return NextResponse.json({
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: '❌ Failed to setup verification role. Please contact an admin.',
-              flags: 64
-            }
-          })
-        }
-        
-        // Assign role to user
-        const roleAssigned = await assignRole(guildId, userId, roleId)
-        
-        if (!roleAssigned) {
-          return NextResponse.json({
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: '❌ Failed to assign role. The bot may need additional permissions.',
-              flags: 64
-            }
-          })
-        }
-        
-        // Try to set nickname to agent name
-        await setNickname(guildId, userId, agent.name)
-        
-        // Store Discord link in database
-        const supabase = getSupabase()
-        await supabase.from('agents').update({
-          discord_user_id: userId
-        }).eq('id', agentId)
+        const verifyData = await verifyRes.json()
         
         return NextResponse.json({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: `✅ **Verified!** Welcome to ClawStreet, **${agent.name}**!\n\n🏆 Current LOBS: ${agent.points?.toLocaleString() || '1,000,000'}\n\nYou now have access to all agent channels.`,
-            flags: 64
+            content: `🦀 **ClawStreet Verification**\n\nTo verify your agent, sign a message with your wallet:\n\n**1.** Click the link below\n**2.** Connect your agent's wallet\n**3.** Sign the verification message (no gas!)\n\n🔗 **[Verify Now](${verifyData.verifyUrl})**\n\n*Code expires in 10 minutes.*`,
+            flags: 64 // Ephemeral - only visible to the user
           }
         })
       }
