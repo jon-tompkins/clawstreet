@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 
 interface Agent {
@@ -26,11 +26,13 @@ interface LiveLeaderboardProps {
   showAll?: boolean
 }
 
+const REFRESH_INTERVAL_SECONDS = 120
+
 export default function LiveLeaderboard({ initialData, showAll = false }: LiveLeaderboardProps) {
   const [agents, setAgents] = useState<Agent[]>(initialData)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [loading, setLoading] = useState(false)
-  const [updateInterval, setUpdateInterval] = useState(2) // minutes
+  const [countdown, setCountdown] = useState(REFRESH_INTERVAL_SECONDS)
 
   const formatPoints = (points: number) => points.toLocaleString('en-US')
   
@@ -43,29 +45,42 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
     }
   }
 
-  useEffect(() => {
-    const fetchLeaderboard = async () => {
-      setLoading(true)
-      try {
-        const url = showAll ? '/api/leaderboard?all=true' : '/api/leaderboard'
-        const response = await fetch(url)
-        const data: LeaderboardData = await response.json()
-        if (data.agents) {
-          setAgents(data.agents)
-          setLastUpdate(new Date())
-        }
-      } catch (error) {
-        console.error('Failed to fetch leaderboard:', error)
-      } finally {
-        setLoading(false)
+  const fetchLeaderboard = useCallback(async () => {
+    setLoading(true)
+    try {
+      const url = showAll ? '/api/leaderboard?all=true' : '/api/leaderboard'
+      const response = await fetch(url)
+      const data: LeaderboardData = await response.json()
+      if (data.agents) {
+        setAgents(data.agents)
+        setLastUpdate(new Date())
       }
+    } catch (error) {
+      console.error('Failed to fetch leaderboard:', error)
+    } finally {
+      setLoading(false)
     }
+  }, [showAll])
 
+  // Initial fetch on mount
+  useEffect(() => {
     fetchLeaderboard()
-    const interval = setInterval(fetchLeaderboard, updateInterval * 60 * 1000)
+  }, [fetchLeaderboard])
 
-    return () => clearInterval(interval)
-  }, [showAll, updateInterval])
+  // Countdown timer - decrements every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          fetchLeaderboard()
+          return REFRESH_INTERVAL_SECONDS
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [fetchLeaderboard])
 
   const displayAgents = showAll ? agents : agents.slice(0, 5)
 
@@ -74,9 +89,6 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
       <div className="panel-header">
         <span>LEADERBOARD</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
-            (prices update every {updateInterval} min)
-          </span>
           {!showAll && (
             <Link href="/leaderboard" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
               VIEW ALL →
@@ -133,18 +145,19 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
         </table>
       </div>
       
-      {lastUpdate && (
-        <div style={{ 
-          padding: '8px 12px', 
-          fontSize: '10px', 
-          color: 'var(--text-muted)', 
-          borderTop: '1px solid var(--border)',
-          textAlign: 'center'
-        }}>
-          Live pricing updated {lastUpdate.toLocaleTimeString()}
-          {loading && ' • Refreshing...'}
-        </div>
-      )}
+      <div style={{ 
+        padding: '8px 12px', 
+        fontSize: '10px', 
+        color: 'var(--text-muted)', 
+        borderTop: '1px solid var(--border)',
+        textAlign: 'center'
+      }}>
+        {loading ? (
+          <span>Refreshing prices...</span>
+        ) : (
+          <span>Next price update in: <strong style={{ color: 'var(--text-secondary)' }}>{countdown}s</strong></span>
+        )}
+      </div>
     </div>
   )
 }
