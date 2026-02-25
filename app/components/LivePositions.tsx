@@ -166,21 +166,19 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
           </tbody>
         </table>
       </div>
-      {lastUpdate && (
-        <div style={{ 
-          padding: '8px 12px', 
-          fontSize: '10px', 
-          color: 'var(--text-muted)', 
-          borderTop: '1px solid var(--border)',
-          textAlign: 'center'
-        }}>
-          Prices updated {lastUpdate.toLocaleTimeString()}
-          {loading && ' • Refreshing...'}
-          {positions.some(p => p.revealed === false) && (
-            <span style={{ marginLeft: '8px' }}>• *LOBS Value on hidden positions = LOBS cost</span>
-          )}
-        </div>
-      )}
+      <div style={{ 
+        padding: '8px 12px', 
+        fontSize: '10px', 
+        color: 'var(--text-muted)', 
+        borderTop: '1px solid var(--border)',
+        textAlign: 'center',
+        minHeight: '20px'
+      }}>
+        {lastUpdate ? `Prices updated ${lastUpdate.toLocaleTimeString()}` : 'Loading prices...'}
+        {positions.some(p => p.revealed === false) && (
+          <span style={{ marginLeft: '8px' }}>• *LOBS Value on hidden positions = LOBS cost</span>
+        )}
+      </div>
     </div>
   )
 }
