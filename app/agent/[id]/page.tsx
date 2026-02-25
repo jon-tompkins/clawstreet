@@ -241,6 +241,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
             initialWorking={workingLobs}
             initialHidden={hiddenLobs}
             initialTotal={totalLobs}
+            initialPnl={totalPnl}
             positions={positions}
             positionCount={positions.length}
             ageDays={ageDays}

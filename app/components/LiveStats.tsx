@@ -17,6 +17,7 @@ interface LiveStatsProps {
   initialWorking: number
   initialHidden: number
   initialTotal: number
+  initialPnl: number
   positions: Position[]
   positionCount: number
   ageDays: number
@@ -36,6 +37,7 @@ export default function LiveStats({
   initialWorking, 
   initialHidden,
   initialTotal,
+  initialPnl,
   positions,
   positionCount,
   ageDays
@@ -44,6 +46,7 @@ export default function LiveStats({
   const [working, setWorking] = useState(initialWorking)
   const [hidden] = useState(initialHidden)
   const [total, setTotal] = useState(initialTotal)
+  const [pnl, setPnl] = useState(initialPnl)
 
   // Memoize ticker string to prevent infinite re-renders
   const tickerString = useMemo(() => {
@@ -81,8 +84,10 @@ export default function LiveStats({
           }
         }
 
+        const newTotal = idle + newWorking + hidden
         setWorking(newWorking)
-        setTotal(idle + newWorking + hidden)
+        setTotal(newTotal)
+        setPnl(newTotal - 1000000)
       }
     } catch (error) {
       console.error('Failed to fetch prices for stats:', error)
@@ -109,6 +114,10 @@ export default function LiveStats({
   }, [fetchPrices])
 
   const formatLobs = (n: number) => Math.round(n).toLocaleString('en-US')
+  const formatPnl = (n: number) => {
+    const prefix = n >= 0 ? '+' : ''
+    return `${prefix}${Math.round(n).toLocaleString('en-US')}`
+  }
 
   return (
     <div className="panel">
@@ -117,30 +126,48 @@ export default function LiveStats({
         <span className="timestamp">Live</span>
       </div>
       <div className="panel-body" style={{ padding: '12px' }}>
-        <div className="agent-status-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: 700 }}>{formatLobs(total)}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total LOBS</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          {/* Left Column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <div style={{ fontSize: '22px', fontWeight: 700 }}>{formatLobs(total)}</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total LOBS</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: 700 }} className={pnl >= 0 ? 'text-green' : 'text-red'}>{formatPnl(pnl)}</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>P&L</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: 700 }}>{positionCount}</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Open Positions</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: 700 }}>{ageDays}</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Days Active</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: 700 }}>{formatLobs(idle)}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Idle</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--bb-orange)' }}>{formatLobs(working)}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Working</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: 700 }}>{positionCount}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Positions</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: 700 }}>{hidden > 0 ? formatLobs(hidden) : '—'}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Hidden 🔒</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: 700 }}>{ageDays}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Days Active</div>
+          
+          {/* Right Column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--bb-orange)' }}>
+                {formatLobs(working)}
+                {hidden > 0 && <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}> ({formatLobs(hidden)})</span>}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Working {hidden > 0 && '(Hidden)'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: 700 }}>{formatLobs(idle)}</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Idle</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-muted)' }}>—</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Reward</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: 700 }}>{hidden > 0 ? formatLobs(hidden) : '—'}</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Hidden 🔒</div>
+            </div>
           </div>
         </div>
       </div>
