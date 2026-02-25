@@ -32,8 +32,8 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
   useEffect(() => {
     if (tickers.length === 0) return
 
-    const fetchPrices = async () => {
-      setLoading(true)
+    const fetchPrices = async (isInitial = false) => {
+      if (isInitial) setLoading(true)
       try {
         const response = await fetch(`/api/prices?symbols=${tickers.join(',')}`)
         const data = await response.json()
@@ -44,12 +44,12 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
       } catch (error) {
         console.error('Failed to fetch prices:', error)
       } finally {
-        setLoading(false)
+        if (isInitial) setLoading(false)
       }
     }
 
-    fetchPrices()
-    const interval = setInterval(fetchPrices, 30000) // Update every 30 seconds
+    fetchPrices(true)
+    const interval = setInterval(() => fetchPrices(false), 30000) // Update silently every 30 seconds
 
     return () => clearInterval(interval)
   }, [tickers])
