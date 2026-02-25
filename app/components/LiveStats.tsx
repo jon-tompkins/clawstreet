@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Position {
   ticker: string
@@ -22,6 +22,14 @@ interface LiveStatsProps {
   ageDays: number
 }
 
+const REFRESH_INTERVAL_SECONDS = 120
+
+// Calculate seconds until next global refresh (synced to wall clock)
+function getSecondsUntilNextRefresh(): number {
+  const now = Math.floor(Date.now() / 1000)
+  return REFRESH_INTERVAL_SECONDS - (now % REFRESH_INTERVAL_SECONDS)
+}
+
 export default function LiveStats({ 
   agentId, 
   initialIdle, 
@@ -36,59 +44,69 @@ export default function LiveStats({
   const [working, setWorking] = useState(initialWorking)
   const [hidden] = useState(initialHidden)
   const [total, setTotal] = useState(initialTotal)
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
   // Get revealed tickers for price fetching
   const revealedTickers = positions
     .filter(p => p.revealed !== false)
     .map(p => p.ticker)
 
-  useEffect(() => {
+  const fetchPrices = useCallback(async () => {
     if (revealedTickers.length === 0) return
-
-    const fetchPrices = async () => {
-      try {
-        const response = await fetch(`/api/prices?symbols=${revealedTickers.join(',')}`)
-        const data = await response.json()
+    
+    try {
+      const response = await fetch(`/api/prices?symbols=${revealedTickers.join(',')}`)
+      const data = await response.json()
+      
+      if (data.prices) {
+        // Recalculate working LOBS with new prices
+        let newWorking = 0
         
-        if (data.prices) {
-          // Recalculate working LOBS with new prices
-          let newWorking = 0
+        for (const pos of positions) {
+          if (pos.revealed === false) continue
           
-          for (const pos of positions) {
-            if (pos.revealed === false) continue
-            
-            const currentPrice = data.prices[pos.ticker]?.price
-            if (!currentPrice) {
-              newWorking += pos.amount_points
-              continue
-            }
-
-            const shares = Math.abs(pos.shares)
-            if (pos.direction === 'LONG') {
-              newWorking += shares * currentPrice
-            } else {
-              // Short: original_amount + (entry - current) * shares
-              const originalAmount = shares * pos.entry_price
-              const priceDiff = pos.entry_price - currentPrice
-              newWorking += originalAmount + (priceDiff * shares)
-            }
+          const currentPrice = data.prices[pos.ticker]?.price
+          if (!currentPrice) {
+            newWorking += pos.amount_points
+            continue
           }
 
-          setWorking(newWorking)
-          setTotal(idle + newWorking + hidden)
-          setLastUpdate(new Date())
+          const shares = Math.abs(pos.shares)
+          if (pos.direction === 'LONG') {
+            newWorking += shares * currentPrice
+          } else {
+            // Short: original_amount + (entry - current) * shares
+            const originalAmount = shares * pos.entry_price
+            const priceDiff = pos.entry_price - currentPrice
+            newWorking += originalAmount + (priceDiff * shares)
+          }
         }
-      } catch (error) {
-        console.error('Failed to fetch prices for stats:', error)
+
+        setWorking(newWorking)
+        setTotal(idle + newWorking + hidden)
       }
+    } catch (error) {
+      console.error('Failed to fetch prices for stats:', error)
     }
+  }, [revealedTickers, positions, idle, hidden])
 
+  // Initial fetch
+  useEffect(() => {
     fetchPrices()
-    const interval = setInterval(fetchPrices, 30000) // Update every 30 seconds
+  }, [fetchPrices])
 
-    return () => clearInterval(interval)
-  }, [revealedTickers.join(','), positions, idle, hidden])
+  // Sync to global wall clock (same timing as LivePositions)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const secondsUntilRefresh = getSecondsUntilNextRefresh()
+      
+      // Trigger fetch when we hit the refresh boundary
+      if (secondsUntilRefresh === REFRESH_INTERVAL_SECONDS || secondsUntilRefresh === 1) {
+        fetchPrices()
+      }
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [fetchPrices])
 
   const formatLobs = (n: number) => Math.round(n).toLocaleString('en-US')
 
@@ -96,9 +114,7 @@ export default function LiveStats({
     <div className="panel">
       <div className="panel-header">
         <span>STATUS</span>
-        <span className="timestamp">
-          {lastUpdate ? `Updated ${lastUpdate.toLocaleTimeString()}` : 'Live'}
-        </span>
+        <span className="timestamp">Live</span>
       </div>
       <div className="panel-body" style={{ padding: '12px' }}>
         <div className="agent-status-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>

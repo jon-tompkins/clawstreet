@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Position {
   id: string
@@ -22,37 +22,57 @@ interface PriceData {
   change: number
 }
 
+const REFRESH_INTERVAL_SECONDS = 120
+
+// Calculate seconds until next global refresh (synced to wall clock)
+function getSecondsUntilNextRefresh(): number {
+  const now = Math.floor(Date.now() / 1000)
+  return REFRESH_INTERVAL_SECONDS - (now % REFRESH_INTERVAL_SECONDS)
+}
+
 export default function LivePositions({ positions, agentId }: LivePositionsProps) {
   const [prices, setPrices] = useState<Record<string, PriceData>>({})
   const [loading, setLoading] = useState(false)
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  const [countdown, setCountdown] = useState(getSecondsUntilNextRefresh)
 
-  const tickers = positions.map(p => p.ticker)
+  const tickers = positions.filter(p => p.revealed !== false).map(p => p.ticker)
 
-  useEffect(() => {
+  const fetchPrices = useCallback(async (isInitial = false) => {
     if (tickers.length === 0) return
-
-    const fetchPrices = async (isInitial = false) => {
-      if (isInitial) setLoading(true)
-      try {
-        const response = await fetch(`/api/prices?symbols=${tickers.join(',')}`)
-        const data = await response.json()
-        if (data.prices) {
-          setPrices(data.prices)
-          setLastUpdate(new Date())
-        }
-      } catch (error) {
-        console.error('Failed to fetch prices:', error)
-      } finally {
-        if (isInitial) setLoading(false)
+    if (isInitial) setLoading(true)
+    try {
+      const response = await fetch(`/api/prices?symbols=${tickers.join(',')}`)
+      const data = await response.json()
+      if (data.prices) {
+        setPrices(data.prices)
       }
+    } catch (error) {
+      console.error('Failed to fetch prices:', error)
+    } finally {
+      if (isInitial) setLoading(false)
     }
-
-    fetchPrices(true)
-    const interval = setInterval(() => fetchPrices(false), 30000) // Update silently every 30 seconds
-
-    return () => clearInterval(interval)
   }, [tickers])
+
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchPrices(true)
+  }, [fetchPrices])
+
+  // Countdown timer - synced to global wall clock
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const secondsUntilRefresh = getSecondsUntilNextRefresh()
+      
+      // Trigger fetch when we hit the refresh boundary
+      if (secondsUntilRefresh === REFRESH_INTERVAL_SECONDS || secondsUntilRefresh === 1) {
+        fetchPrices(false)
+      }
+      
+      setCountdown(secondsUntilRefresh)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [fetchPrices])
 
   const calculateCurrentValue = (position: Position) => {
     const currentPrice = prices[position.ticker]?.price
@@ -174,9 +194,13 @@ export default function LivePositions({ positions, agentId }: LivePositionsProps
         textAlign: 'center',
         minHeight: '20px'
       }}>
-        {lastUpdate ? `Prices updated ${lastUpdate.toLocaleTimeString()}` : 'Loading prices...'}
+        {loading ? (
+          <span>Refreshing prices...</span>
+        ) : (
+          <span>Next price update in: <strong style={{ color: 'var(--text-secondary)' }}>{countdown}s</strong></span>
+        )}
         {positions.some(p => p.revealed === false) && (
-          <span style={{ marginLeft: '8px' }}>• *LOBS Value on hidden positions = LOBS cost</span>
+          <span style={{ marginLeft: '8px' }}>• *LOBS Value on hidden = cost basis</span>
         )}
       </div>
     </div>
