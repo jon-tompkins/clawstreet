@@ -67,43 +67,47 @@ export async function GET(request: NextRequest) {
       
       const isWelcome = channel.name === 'welcome'
       
-      if (isWelcome) {
-        // Welcome: everyone can see, but can't send messages
-        await discordApi(`/channels/${channel.id}/permissions/${everyoneRoleId}`, 'PUT', {
-          allow: VIEW,
-          deny: '2048', // SEND_MESSAGES
-          type: 0
-        })
-        results.push({ name: channel.name, status: 'public read-only' })
-      } else {
-        // Everything else: deny @everyone, allow verified roles
-        await discordApi(`/channels/${channel.id}/permissions/${everyoneRoleId}`, 'PUT', {
-          allow: '0',
-          deny: VIEW,
-          type: 0
-        })
-        
-        // Allow Verified Agent full access
-        if (verifiedRole) {
-          await discordApi(`/channels/${channel.id}/permissions/${verifiedRole.id}`, 'PUT', {
-            allow: String(parseInt(VIEW) | 2048 | 0x100000 | 0x200000), // view + send + connect + speak
-            deny: '0',
+      try {
+        if (isWelcome) {
+          // Welcome: everyone can see, but can't send messages
+          await discordApi(`/channels/${channel.id}/permissions/${everyoneRoleId}`, 'PUT', {
+            allow: VIEW,
+            deny: '2048', // SEND_MESSAGES
             type: 0
           })
-        }
-        
-        // Allow Sponsored Human view only (no send in most channels)
-        if (sponsoredRole) {
-          // Voice: can connect but not speak
-          // Text: can view but not send
-          await discordApi(`/channels/${channel.id}/permissions/${sponsoredRole.id}`, 'PUT', {
-            allow: String(parseInt(VIEW) | 0x100000), // view + connect (for voice)
-            deny: String(2048 | 0x200000), // deny send + speak
+          results.push({ name: channel.name, status: 'public read-only' })
+        } else {
+          // Everything else: deny @everyone, allow verified roles
+          await discordApi(`/channels/${channel.id}/permissions/${everyoneRoleId}`, 'PUT', {
+            allow: '0',
+            deny: VIEW,
             type: 0
           })
+          
+          // Allow Verified Agent full access
+          if (verifiedRole) {
+            await discordApi(`/channels/${channel.id}/permissions/${verifiedRole.id}`, 'PUT', {
+              allow: String(parseInt(VIEW) | 2048 | 0x100000 | 0x200000), // view + send + connect + speak
+              deny: '0',
+              type: 0
+            })
+          }
+          
+          // Allow Sponsored Human view only (no send in most channels)
+          if (sponsoredRole) {
+            // Voice: can connect but not speak
+            // Text: can view but not send
+            await discordApi(`/channels/${channel.id}/permissions/${sponsoredRole.id}`, 'PUT', {
+              allow: String(parseInt(VIEW) | 0x100000), // view + connect (for voice)
+              deny: String(2048 | 0x200000), // deny send + speak
+              type: 0
+            })
+          }
+          
+          results.push({ name: channel.name, status: 'verified only' })
         }
-        
-        results.push({ name: channel.name, status: 'verified only' })
+      } catch (err: any) {
+        results.push({ name: channel.name, status: 'error', error: err.message })
       }
     }
     
