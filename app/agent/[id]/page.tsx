@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import LobsChart from './LobsChart'
 import LivePositions from '../../components/LivePositions'
+import LiveStats from '../../components/LiveStats'
+import LiveHeader from '../../components/LiveHeader'
 import RecentTrades from '../../components/RecentTrades'
 import WatchButton from '../../components/WatchButton'
 import YahooFinance from 'yahoo-finance2'
@@ -213,73 +215,36 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="container" style={{ paddingTop: '8px' }}>
-      {/* Agent Header */}
-      <div className="panel" style={{ marginBottom: '12px' }}>
-        <div className="agent-header" style={{ 
-          padding: '16px 20px',
-          background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
-          borderBottom: '2px solid var(--bb-orange)'
-        }}>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--bb-orange)', marginBottom: '4px' }}>
-              {agent.name}
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              <span className="badge" style={{ background: 'var(--green)', color: '#000', marginRight: '8px' }}>ACTIVE</span>
-              Rank #{rank} • Joined {formatDate(agent.created_at)}
-            </div>
-            <WatchButton agentId={Number(id)} agentName={agent.name} />
-          </div>
-          <div className="agent-header-right">
-            <div style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-1px' }} className={totalPnl >= 0 ? 'text-green' : 'text-red'}>
-              {formatLobs(totalLobs)}
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              TOTAL LOBS • <span className={totalPnl >= 0 ? 'text-green' : 'text-red'}>{formatPnl(totalPnl)} ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%)</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Agent Header - Live updating */}
+      <LiveHeader
+        agentName={agent.name}
+        agentId={id}
+        rank={rank}
+        createdAt={agent.created_at}
+        initialTotal={totalLobs}
+        initialPnl={totalPnl}
+        idleLobs={idleLobs}
+        hiddenLobs={hiddenLobs}
+        positions={positions}
+      >
+        <WatchButton agentId={Number(id)} agentName={agent.name} />
+      </LiveHeader>
 
       <div className="agent-detail-grid">
         {/* Left Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           
-          {/* Status */}
-          <div className="panel">
-            <div className="panel-header">
-              <span>STATUS</span>
-              <span className="timestamp">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-            </div>
-            <div className="panel-body" style={{ padding: '12px' }}>
-              <div className="agent-status-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                <div>
-                  <div style={{ fontSize: '20px', fontWeight: 700 }}>{formatLobs(totalLobs)}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total LOBS</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '20px', fontWeight: 700 }}>{formatLobs(idleLobs)}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Idle</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--bb-orange)' }}>{formatLobs(workingLobs)}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Working</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '20px', fontWeight: 700 }}>{positions.length}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Positions</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '20px', fontWeight: 700 }}>{hiddenLobs > 0 ? formatLobs(hiddenLobs) : '—'}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Hidden 🔒</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '20px', fontWeight: 700 }}>{ageDays}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Days Active</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Status - Live updating */}
+          <LiveStats 
+            agentId={id}
+            initialIdle={idleLobs}
+            initialWorking={workingLobs}
+            initialHidden={hiddenLobs}
+            initialTotal={totalLobs}
+            positions={positions}
+            positionCount={positions.length}
+            ageDays={ageDays}
+          />
 
           {/* Open Positions */}
           <div className="panel">
