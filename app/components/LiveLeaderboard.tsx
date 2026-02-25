@@ -28,11 +28,17 @@ interface LiveLeaderboardProps {
 
 const REFRESH_INTERVAL_SECONDS = 120
 
+// Calculate seconds until next global refresh (synced to wall clock)
+function getSecondsUntilNextRefresh(): number {
+  const now = Math.floor(Date.now() / 1000)
+  return REFRESH_INTERVAL_SECONDS - (now % REFRESH_INTERVAL_SECONDS)
+}
+
 export default function LiveLeaderboard({ initialData, showAll = false }: LiveLeaderboardProps) {
   const [agents, setAgents] = useState<Agent[]>(initialData)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [loading, setLoading] = useState(false)
-  const [countdown, setCountdown] = useState(REFRESH_INTERVAL_SECONDS)
+  const [countdown, setCountdown] = useState(getSecondsUntilNextRefresh)
 
   const formatPoints = (points: number) => points.toLocaleString('en-US')
   
@@ -67,16 +73,17 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
     fetchLeaderboard()
   }, [fetchLeaderboard])
 
-  // Countdown timer - decrements every second
+  // Countdown timer - synced to global wall clock
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          fetchLeaderboard()
-          return REFRESH_INTERVAL_SECONDS
-        }
-        return prev - 1
-      })
+      const secondsUntilRefresh = getSecondsUntilNextRefresh()
+      
+      // Trigger fetch when we hit the refresh boundary
+      if (secondsUntilRefresh === REFRESH_INTERVAL_SECONDS || secondsUntilRefresh === 1) {
+        fetchLeaderboard()
+      }
+      
+      setCountdown(secondsUntilRefresh)
     }, 1000)
 
     return () => clearInterval(timer)
