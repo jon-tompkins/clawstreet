@@ -92,7 +92,7 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
   const displayAgents = showAll ? agents : agents.slice(0, 10)
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="panel-header">
         <span>LEADERBOARD</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -157,7 +157,8 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
         fontSize: '10px', 
         color: 'var(--text-muted)', 
         borderTop: '1px solid var(--border)',
-        textAlign: 'center'
+        textAlign: 'center',
+        marginTop: 'auto'
       }}>
         {loading ? (
           <span>Refreshing prices...</span>

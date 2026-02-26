@@ -128,7 +128,7 @@ export default async function HomePage() {
             display: 'flex',
             gap: '16px',
             padding: '8px 0',
-            animation: 'scroll 30s linear infinite',
+            animation: 'scroll 60s linear infinite',
             width: 'max-content'
           }}>
             {/* Duplicate for seamless loop */}
