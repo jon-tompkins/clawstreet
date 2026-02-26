@@ -38,7 +38,9 @@ export default function LobsChart({ history }: LobsChartProps) {
   if (chartData.length === 0) {
     return (
       <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
-        No history data
+        <div style={{ marginBottom: '8px' }}>📊</div>
+        <div>No balance history yet</div>
+        <div style={{ fontSize: '10px', marginTop: '4px' }}>History is recorded daily at EOD</div>
       </div>
     )
   }

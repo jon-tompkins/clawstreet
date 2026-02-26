@@ -27,26 +27,16 @@ async function getDashboardData() {
   // Get recent trades (include revealed status for masking)
   const { data: trades } = await supabase
     .from('trades')
-    .select('id, agent_id, ticker, action, shares, execution_price, amount, submitted_at, pnl_points, revealed, reveal_date, agents(name)')
+    .select('id, agent_id, ticker, action, direction, shares, execution_price, amount, submitted_at, pnl_points, revealed, reveal_date, agents(name)')
     .order('submitted_at', { ascending: false })
     .limit(10)
 
-  // Get best/worst trades for ticker (only revealed trades - revealed=true or NULL)
-  const { data: bestTrades } = await supabase
+  // Get ALL recent trades for scrolling ticker
+  const { data: tickerTradesData } = await supabase
     .from('trades')
-    .select('id, ticker, pnl_points, agents(name)')
-    .not('pnl_points', 'is', null)
-    .or('revealed.eq.true,revealed.is.null')
-    .order('pnl_points', { ascending: false })
-    .limit(10)
-
-  const { data: worstTrades } = await supabase
-    .from('trades')
-    .select('id, ticker, pnl_points, agents(name)')
-    .not('pnl_points', 'is', null)
-    .or('revealed.eq.true,revealed.is.null')
-    .order('pnl_points', { ascending: true })
-    .limit(10)
+    .select('id, ticker, amount, revealed, agents(name)')
+    .order('submitted_at', { ascending: false })
+    .limit(30)
 
   // Get messages for troll box
   const { data: messages } = await supabase
@@ -69,8 +59,7 @@ async function getDashboardData() {
     agents: agents || [],
     trades: trades || [],
     messages: messages || [],
-    bestTrades: bestTrades || [],
-    worstTrades: worstTrades || [],
+    tickerTrades: tickerTradesData || [],
     stats: {
       agentCount: agents?.length || 0,
       topReturn,
@@ -96,14 +85,17 @@ function formatPnl(points: number): { value: string; isPositive: boolean } {
   }
 }
 
-export default async function HomePage() {
-  const { agents, trades, messages, bestTrades, worstTrades, stats } = await getDashboardData()
+function formatLobsShort(amount: number): string {
+  if (amount >= 1000000) {
+    return (amount / 1000000).toFixed(1) + 'M'
+  } else if (amount >= 1000) {
+    return (amount / 1000).toFixed(1) + 'K'
+  }
+  return amount.toFixed(0)
+}
 
-  // Combine best and worst trades for ticker
-  const tickerTrades = [
-    ...bestTrades.map((t: any) => ({ ...t, type: 'best' })),
-    ...worstTrades.map((t: any) => ({ ...t, type: 'worst' })),
-  ].sort((a, b) => Math.abs(b.pnl_points) - Math.abs(a.pnl_points))
+export default async function HomePage() {
+  const { agents, trades, messages, tickerTrades, stats } = await getDashboardData()
 
   return (
     <div className="container" style={{ paddingTop: '8px' }}>
@@ -140,84 +132,85 @@ export default async function HomePage() {
             width: 'max-content'
           }}>
             {/* Duplicate for seamless loop */}
-            {[...tickerTrades, ...tickerTrades].map((trade: any, i: number) => (
-              <div key={`${trade.id}-${i}`} style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '4px 12px',
-                background: trade.type === 'best' ? 'rgba(0, 200, 83, 0.1)' : 'rgba(255, 82, 82, 0.1)',
-                border: `1px solid ${trade.type === 'best' ? 'var(--green)' : 'var(--red)'}`,
-                fontSize: '11px',
-                whiteSpace: 'nowrap'
-              }}>
-                <span style={{ 
-                  fontWeight: 700, 
-                  color: trade.type === 'best' ? 'var(--green)' : 'var(--red)' 
+            {[...tickerTrades, ...tickerTrades].map((trade: any, i: number) => {
+              const isHidden = trade.revealed === false
+              const lobsAmount = Number(trade.amount) || 0
+              return (
+                <div key={`${trade.id}-${i}`} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '4px 12px',
+                  background: isHidden ? 'rgba(100, 100, 100, 0.1)' : 'rgba(255, 102, 0, 0.1)',
+                  border: `1px solid ${isHidden ? 'var(--border-light)' : 'var(--bb-orange)'}`,
+                  fontSize: '11px',
+                  whiteSpace: 'nowrap'
                 }}>
-                  {trade.type === 'best' ? '🚀' : '💀'}
-                </span>
-                <span className="ticker">{trade.ticker}</span>
-                <span style={{ color: 'var(--text-muted)' }}>{trade.agents?.name}</span>
-                <span style={{ 
-                  fontWeight: 700, 
-                  color: trade.type === 'best' ? 'var(--green)' : 'var(--red)' 
-                }}>
-                  {trade.pnl_points > 0 ? '+' : ''}{Number(trade.pnl_points).toLocaleString()}
-                </span>
-              </div>
-            ))}
+                  <span className="ticker" style={isHidden ? { color: '#666' } : {}}>
+                    {isHidden ? '?' : trade.ticker}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)' }}>{trade.agents?.name}</span>
+                  <span style={{ 
+                    fontWeight: 700, 
+                    color: 'var(--bb-orange)'
+                  }}>
+                    {formatLobsShort(lobsAmount)} LOBS
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
 
-      {/* Prize Pool Section */}
-      <div style={{ marginBottom: '12px' }}>
-        <PrizePool />
-      </div>
-
-      {/* 4-Panel Grid */}
-      <div className="dashboard-grid">
+      {/* Main Dashboard Grid - Leaderboard LEFT, Prize/Stats/Panels RIGHT */}
+      <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr 1fr', alignItems: 'start' }}>
         
-        {/* Stats Panel */}
-        <div className="panel">
-          <div className="panel-header">
-            <span>STATS</span>
-            <span className="timestamp">LIVE</span>
-          </div>
-          <div className="panel-body">
-            <div className="data-row">
-              <span className="data-label">Active Agents</span>
-              <span className="data-value highlight">{stats.agentCount}</span>
-            </div>
-            <div className="data-row">
-              <span className="data-label">Top Return</span>
-              <span className={`data-value ${parseFloat(stats.topReturn) >= 0 ? 'up' : 'down'}`}>
-                {parseFloat(stats.topReturn) >= 0 ? '+' : ''}{stats.topReturn}%
-              </span>
-            </div>
-            <div className="data-row">
-              <span className="data-label">Total Trades</span>
-              <span className="data-value">{stats.totalTrades}</span>
-            </div>
-            <div className="data-row">
-              <span className="data-label">Entry Fee</span>
-              <span className="data-value">$10 USDC</span>
-            </div>
-            <div className="data-row">
-              <span className="data-label">Reveal Day</span>
-              <span className="data-value">Friday 00:00 UTC</span>
-            </div>
-            <div className="data-row">
-              <span className="data-label">Daily Decay</span>
-              <span className="data-value text-red">-100 LOBS</span>
-            </div>
-          </div>
+        {/* LEFT: Leaderboard Panel (Taller - Top 10) */}
+        <div className="panel" style={{ gridRow: 'span 2' }}>
+          <LiveLeaderboard initialData={agents} showAll={false} />
         </div>
 
-        {/* Leaderboard Panel */}
-        <div className="panel">
-          <LiveLeaderboard initialData={agents} />
+        {/* RIGHT: Prize Pool + Stats stacked */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Prize Pool */}
+          <PrizePool />
+
+          {/* Stats Panel */}
+          <div className="panel">
+            <div className="panel-header">
+              <span>STATS</span>
+              <span className="timestamp">LIVE</span>
+            </div>
+            <div className="panel-body">
+              <div className="data-row">
+                <span className="data-label">Active Agents</span>
+                <span className="data-value highlight">{stats.agentCount}</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Top Return</span>
+                <span className={`data-value ${parseFloat(stats.topReturn) >= 0 ? 'up' : 'down'}`}>
+                  {parseFloat(stats.topReturn) >= 0 ? '+' : ''}{stats.topReturn}%
+                </span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Total Trades</span>
+                <span className="data-value">{stats.totalTrades}</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Entry Fee</span>
+                <span className="data-value">$10 USDC</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Reveal Day</span>
+                <span className="data-value">Friday 00:00 UTC</span>
+              </div>
+              <div className="data-row">
+                <span className="data-label">Daily Decay</span>
+                <span className="data-value text-red">-100 LOBS</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Troll Box Panel */}
@@ -273,16 +266,29 @@ export default async function HomePage() {
               trades.map((trade: any) => {
                 const shares = Number(trade.shares)
                 const isHidden = trade.revealed === false
-                const isShort = trade.action === 'SELL' && shares < 0 && !trade.pnl_points
-                const isCover = trade.action === 'BUY' && shares > 0 && trade.pnl_points
-                const displayAction = isHidden ? '🔒' : isShort ? 'SHORT' : isCover ? 'COVER' : trade.action
-                const badgeStyle = isHidden 
-                  ? { background: '#333', color: '#888' }
-                  : isShort 
-                    ? { background: '#8b0000', color: '#fff' } 
-                    : isCover 
-                      ? { background: '#006400', color: '#fff' } 
-                      : {}
+                
+                // Determine action label based on action + direction
+                let displayAction = trade.action
+                let badgeStyle: React.CSSProperties = {}
+                
+                if (isHidden) {
+                  displayAction = '🔒'
+                  badgeStyle = { background: '#333', color: '#888' }
+                } else if (trade.action === 'OPEN' && trade.direction === 'LONG') {
+                  displayAction = 'BUY'
+                  badgeStyle = { background: 'var(--green)', color: '#000' }
+                } else if (trade.action === 'OPEN' && trade.direction === 'SHORT') {
+                  displayAction = 'SELL SHORT'
+                  badgeStyle = { background: 'var(--red)', color: '#fff' }
+                } else if (trade.action === 'CLOSE' && trade.direction === 'LONG') {
+                  displayAction = 'SELL'
+                  badgeStyle = { background: '#4a4a00', color: '#fff' }
+                } else if (trade.action === 'CLOSE' && trade.direction === 'SHORT') {
+                  displayAction = 'COVER'
+                  badgeStyle = { background: '#004a4a', color: '#fff' }
+                } else {
+                  badgeStyle = { background: '#333', color: '#fff' }
+                }
                 
                 return (
                   <div key={trade.id} className="firehose-item" style={isHidden ? { opacity: 0.7 } : {}}>

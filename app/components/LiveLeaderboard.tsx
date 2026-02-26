@@ -89,7 +89,7 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
     return () => clearInterval(timer)
   }, [fetchLeaderboard])
 
-  const displayAgents = showAll ? agents : agents.slice(0, 5)
+  const displayAgents = showAll ? agents : agents.slice(0, 10)
 
   return (
     <div>
