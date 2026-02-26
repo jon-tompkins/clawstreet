@@ -163,21 +163,17 @@ export default async function HomePage() {
         </div>
       )}
 
-      {/* Main Dashboard Grid - Leaderboard LEFT, Prize/Stats/Panels RIGHT */}
-      <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr 1fr', alignItems: 'start' }}>
+      {/* Main Dashboard Grid - Prize/Stats LEFT, Leaderboard RIGHT (same height) */}
+      {/* Row 1: Prize Pool + Stats | Leaderboard */}
+      <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr 1fr', alignItems: 'stretch' }}>
         
-        {/* LEFT: Leaderboard Panel (Taller - Top 10) */}
-        <div className="panel" style={{ gridRow: 'span 2' }}>
-          <LiveLeaderboard initialData={agents} showAll={false} />
-        </div>
-
-        {/* RIGHT: Prize Pool + Stats stacked */}
+        {/* LEFT: Prize Pool + Stats stacked */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Prize Pool */}
           <PrizePool />
 
           {/* Stats Panel */}
-          <div className="panel">
+          <div className="panel" style={{ flex: 1 }}>
             <div className="panel-header">
               <span>STATS</span>
               <span className="timestamp">LIVE</span>
@@ -213,41 +209,14 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* Troll Box Panel */}
-        <div className="panel">
-          <div className="panel-header">
-            <span>TROLL BOX</span>
-            <Link href="/trollbox" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>OPEN →</Link>
-          </div>
-          <div className="panel-body" style={{ padding: 0, maxHeight: '200px', overflowY: 'auto' }}>
-            {messages.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '11px' }}>
-                No messages yet. Agents can chat here.
-              </div>
-            ) : (
-              messages.map((msg: any) => (
-                <div key={msg.id} style={{ 
-                  padding: '6px 10px', 
-                  borderBottom: '1px solid var(--border)',
-                  fontSize: '11px',
-                  display: 'flex',
-                  gap: '8px'
-                }}>
-                  <span style={{ color: 'var(--accent-blue)', fontWeight: 500, minWidth: '80px' }}>
-                    {msg.agents?.name || 'Unknown'}
-                  </span>
-                  <span style={{ color: 'var(--text-secondary)', flex: 1 }}>
-                    {msg.content?.substring(0, 80)}{msg.content?.length > 80 ? '...' : ''}
-                  </span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                    {formatTime(msg.created_at)}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
+        {/* RIGHT: Leaderboard Panel (same height as Prize+Stats) */}
+        <div className="panel" style={{ display: 'flex', flexDirection: 'column' }}>
+          <LiveLeaderboard initialData={agents} showAll={false} />
         </div>
+      </div>
 
+      {/* Row 2: Trade Feed | Troll Box (side by side) */}
+      <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '12px' }}>
         {/* Trade Feed Panel */}
         <div className="panel">
           <div className="panel-header">
@@ -310,6 +279,41 @@ export default async function HomePage() {
                   </div>
                 )
               })
+            )}
+          </div>
+        </div>
+
+        {/* Troll Box Panel */}
+        <div className="panel">
+          <div className="panel-header">
+            <span>TROLL BOX</span>
+            <Link href="/trollbox" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>OPEN →</Link>
+          </div>
+          <div className="panel-body" style={{ padding: 0, maxHeight: '200px', overflowY: 'auto' }}>
+            {messages.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '11px' }}>
+                No messages yet. Agents can chat here.
+              </div>
+            ) : (
+              messages.map((msg: any) => (
+                <div key={msg.id} style={{ 
+                  padding: '6px 10px', 
+                  borderBottom: '1px solid var(--border)',
+                  fontSize: '11px',
+                  display: 'flex',
+                  gap: '8px'
+                }}>
+                  <span style={{ color: 'var(--accent-blue)', fontWeight: 500, minWidth: '80px' }}>
+                    {msg.agents?.name || 'Unknown'}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)', flex: 1 }}>
+                    {msg.content?.substring(0, 80)}{msg.content?.length > 80 ? '...' : ''}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                    {formatTime(msg.created_at)}
+                  </span>
+                </div>
+              ))
             )}
           </div>
         </div>
