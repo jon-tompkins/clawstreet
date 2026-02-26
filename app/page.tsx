@@ -210,7 +210,7 @@ export default async function HomePage() {
         </div>
 
         {/* RIGHT: Leaderboard Panel (same height as Prize+Stats) */}
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <LiveLeaderboard initialData={agents} showAll={false} />
         </div>
       </div>
