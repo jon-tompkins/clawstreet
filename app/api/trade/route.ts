@@ -256,8 +256,74 @@ const COINGECKO_IDS: Record<string, string> = {
   'ORDI-USD': 'ordinals',
 }
 
-// Get crypto price from CoinGecko
-async function getCryptoPrice(ticker: string): Promise<number | null> {
+// Binance symbol mapping (high-cap crypto)
+const BINANCE_SYMBOLS: Record<string, string> = {
+  'BTC-USD': 'BTCUSDT',
+  'ETH-USD': 'ETHUSDT',
+  'BNB-USD': 'BNBUSDT',
+  'XRP-USD': 'XRPUSDT',
+  'SOL-USD': 'SOLUSDT',
+  'ADA-USD': 'ADAUSDT',
+  'DOGE-USD': 'DOGEUSDT',
+  'TRX-USD': 'TRXUSDT',
+  'AVAX-USD': 'AVAXUSDT',
+  'LINK-USD': 'LINKUSDT',
+  'DOT-USD': 'DOTUSDT',
+  'MATIC-USD': 'MATICUSDT',
+  'SHIB-USD': 'SHIBUSDT',
+  'LTC-USD': 'LTCUSDT',
+  'BCH-USD': 'BCHUSDT',
+  'UNI-USD': 'UNIUSDT',
+  'XLM-USD': 'XLMUSDT',
+  'ATOM-USD': 'ATOMUSDT',
+  'ETC-USD': 'ETCUSDT',
+  'FIL-USD': 'FILUSDT',
+  'NEAR-USD': 'NEARUSDT',
+  'ARB-USD': 'ARBUSDT',
+  'APT-USD': 'APTUSDT',
+  'MKR-USD': 'MKRUSDT',
+  'OP-USD': 'OPUSDT',
+  'INJ-USD': 'INJUSDT',
+  'GRT-USD': 'GRTUSDT',
+  'AAVE-USD': 'AAVEUSDT',
+  'ALGO-USD': 'ALGOUSDT',
+  'FTM-USD': 'FTMUSDT',
+  'RENDER-USD': 'RENDERUSDT',
+  'IMX-USD': 'IMXUSDT',
+  'SAND-USD': 'SANDUSDT',
+  'MANA-USD': 'MANAUSDT',
+  'CRV-USD': 'CRVUSDT',
+  'LDO-USD': 'LDOUSDT',
+  'ENS-USD': 'ENSUSDT',
+  'GMX-USD': 'GMXUSDT',
+  'DYDX-USD': 'DYDXUSDT',
+  'STX-USD': 'STXUSDT',
+  'SUI-USD': 'SUIUSDT',
+  'SEI-USD': 'SEIUSDT',
+  'TIA-USD': 'TIAUSDT',
+  'JUP-USD': 'JUPUSDT',
+  'WIF-USD': 'WIFUSDT',
+  'BONK-USD': 'BONKUSDT',
+  'PEPE-USD': 'PEPEUSDT',
+  'FLOKI-USD': 'FLOKIUSDT',
+}
+
+// Get crypto price from Binance (primary, most reliable)
+async function getBinancePrice(ticker: string): Promise<number | null> {
+  const symbol = BINANCE_SYMBOLS[ticker.toUpperCase()]
+  if (!symbol) return null
+  
+  try {
+    const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`)
+    const data = await res.json()
+    return data?.price ? parseFloat(data.price) : null
+  } catch {
+    return null
+  }
+}
+
+// Get crypto price from CoinGecko (backup + validation)
+async function getCoinGeckoPrice(ticker: string): Promise<number | null> {
   const geckoId = COINGECKO_IDS[ticker.toUpperCase()]
   if (!geckoId) return null
   
@@ -273,18 +339,40 @@ async function getCryptoPrice(ticker: string): Promise<number | null> {
   }
 }
 
-// Get current price - CoinGecko for crypto, Yahoo for stocks
+// Get crypto price with validation (Binance primary, CoinGecko validation)
+async function getCryptoPrice(ticker: string): Promise<number | null> {
+  const binancePrice = await getBinancePrice(ticker)
+  const geckoPrice = await getCoinGeckoPrice(ticker)
+  
+  // If we have both, validate they're within 1%
+  if (binancePrice && geckoPrice) {
+    const deviation = Math.abs(binancePrice - geckoPrice) / geckoPrice
+    if (deviation > 0.01) {
+      console.warn(`Price deviation for ${ticker}: Binance=$${binancePrice}, CoinGecko=$${geckoPrice}, deviation=${(deviation * 100).toFixed(2)}%`)
+      // Use CoinGecko as tiebreaker since it's more broadly sourced
+      return geckoPrice
+    }
+    return binancePrice // Binance is primary when validated
+  }
+  
+  // Return whichever we have
+  return binancePrice || geckoPrice || null
+}
+
+// Get current price - Binance/CoinGecko for crypto, Yahoo for stocks
 async function getPrice(ticker: string): Promise<number | null> {
   const upperTicker = ticker.toUpperCase()
   
-  // Use CoinGecko for crypto
+  // Use Binance/CoinGecko for crypto
   if (CRYPTO_TICKERS.includes(upperTicker)) {
     const cryptoPrice = await getCryptoPrice(upperTicker)
     if (cryptoPrice) return cryptoPrice
-    // Fallback to Yahoo if CoinGecko fails
+    // Don't fall back to Yahoo for crypto - prices are unreliable
+    console.error(`Could not get crypto price for ${upperTicker}`)
+    return null
   }
   
-  // Use Yahoo Finance for stocks (and crypto fallback)
+  // Use Yahoo Finance for stocks only
   try {
     const quote: any = await yahooFinance.quote(upperTicker)
     return quote?.regularMarketPrice || null
@@ -476,10 +564,25 @@ export async function POST(request: NextRequest) {
         .eq('agent_id', agent.id)
       const totalWorking = allPositions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
       
-      await supabase.from('agents').update({ 
+      // CRITICAL: Update balance with error handling
+      const { error: updateError } = await supabase.from('agents').update({ 
         cash_balance: newCashBalance,
         points: newCashBalance + totalWorking
       }).eq('id', agent.id)
+      
+      if (updateError) {
+        console.error('CRITICAL: Failed to update agent balance after OPEN trade', {
+          agent_id: agent.id,
+          trade_id: trade?.id,
+          newCashBalance,
+          error: updateError
+        })
+        return NextResponse.json({
+          success: true,
+          warning: 'Trade recorded but balance update may have failed. Contact support.',
+          trade: { id: trade?.id, action: 'OPEN', ticker: upperTicker },
+        })
+      }
       
       // Add fee to prize pool
       await addToPrizePool(supabase, fee)
@@ -570,10 +673,26 @@ export async function POST(request: NextRequest) {
         .eq('agent_id', agent.id)
       const totalWorking = remainingPositions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
       
-      await supabase.from('agents').update({ 
+      // CRITICAL: Update balance with error handling
+      const { error: updateError } = await supabase.from('agents').update({ 
         cash_balance: newCashBalance,
         points: newCashBalance + totalWorking
       }).eq('id', agent.id)
+      
+      if (updateError) {
+        console.error('CRITICAL: Failed to update agent balance after CLOSE trade', {
+          agent_id: agent.id,
+          trade_id: trade?.id,
+          newCashBalance,
+          error: updateError
+        })
+        // Trade is already recorded - return with warning
+        return NextResponse.json({
+          success: true,
+          warning: 'Trade recorded but balance update may have failed. Contact support.',
+          trade: { id: trade?.id, action: 'CLOSE', ticker: upperTicker },
+        })
+      }
       
       // Add close fee to prize pool
       await addToPrizePool(supabase, closeFee)
