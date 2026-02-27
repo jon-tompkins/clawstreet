@@ -680,6 +680,7 @@ export async function POST(request: NextRequest) {
         week_id: weekId,
         reveal_date: revealDate,
         submitted_at: now.toISOString(),
+        revealed: true,  // Regular trades are always revealed
       }).select().single()
       
       if (tradeError) throw tradeError
