@@ -77,10 +77,8 @@ export async function GET(request: NextRequest) {
       .from('agents')
       .select('id, name, points, cash_balance, status, created_at')
     
-    // Filter to active only (unless ?all=true)
-    const agents = showAll 
-      ? allAgents 
-      : allAgents?.filter(a => a.status === 'active')
+    // Always filter to active agents only (pending agents can't trade)
+    const agents = allAgents?.filter(a => a.status === 'active')
     
     if (agentError) throw agentError
     
