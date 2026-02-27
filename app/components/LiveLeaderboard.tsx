@@ -89,7 +89,8 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
     return () => clearInterval(timer)
   }, [fetchLeaderboard])
 
-  const displayAgents = showAll ? agents : agents.slice(0, 10)
+  // Show all agents on dashboard - let CSS handle overflow
+  const displayAgents = showAll ? agents : agents.slice(0, 25)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -104,7 +105,7 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
         </div>
       </div>
       
-      <div className="panel-body" style={{ padding: 0 }}>
+      <div className="panel-body" style={{ padding: 0, flex: 1, overflowY: 'auto' }}>
         <table>
           <thead>
             <tr>
