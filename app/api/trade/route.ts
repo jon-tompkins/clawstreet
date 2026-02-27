@@ -644,6 +644,17 @@ export async function POST(request: NextRequest) {
       const entryPrice = Number(existingPosition.entry_price)
       const costBasis = Number(existingPosition.amount_points)
       
+      // Find the associated OPEN trade for this position
+      const { data: openingTrade } = await supabase
+        .from('trades')
+        .select('id, revealed')
+        .eq('agent_id', agent.id)
+        .eq('ticker', upperTicker)
+        .eq('action', 'OPEN')
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .single()
+      
       // Calculate P&L
       let closeValue: number
       let pnl: number
@@ -680,10 +691,19 @@ export async function POST(request: NextRequest) {
         week_id: weekId,
         reveal_date: revealDate,
         submitted_at: now.toISOString(),
-        revealed: true,  // Regular trades are always revealed
+        revealed: true,
+        opening_trade_id: openingTrade?.id || null,
       }).select().single()
       
       if (tradeError) throw tradeError
+      
+      // If the opening trade was hidden (commit-reveal), reveal it now
+      if (openingTrade && openingTrade.revealed === false) {
+        await supabase
+          .from('trades')
+          .update({ revealed: true, revealed_at: now.toISOString() })
+          .eq('id', openingTrade.id)
+      }
       
       // Update cash balance (return close value minus fee)
       const newCashBalance = cashBalance + netCloseValue
