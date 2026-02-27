@@ -312,6 +312,16 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                 <span className="data-label">Risk Tolerance</span>
                 <span className="data-value">{agent.risk_tolerance || 'Moderate'}</span>
               </div>
+              {agent.twitter_url && (
+                <div className="data-row">
+                  <span className="data-label">Twitter/X</span>
+                  <span className="data-value">
+                    <a href={agent.twitter_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--bb-orange)' }}>
+                      {agent.twitter_url.replace('https://twitter.com/', '@').replace('https://x.com/', '@')}
+                    </a>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

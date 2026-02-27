@@ -28,7 +28,8 @@ async function getTrades(agentId?: string, ticker?: string, page = 1, limit = 50
       pnl_percent,
       submitted_at,
       revealed,
-      reveal_date
+      reveal_date,
+      notes
     `, { count: 'exact' })
     .order('submitted_at', { ascending: false })
 
@@ -196,12 +197,13 @@ export default async function TradesPage({ searchParams }: PageProps) {
                 <th className="right">PRICE</th>
                 <th className="right">LOBS</th>
                 <th className="right">P&L</th>
+                <th>NOTES</th>
               </tr>
             </thead>
             <tbody>
               {trades.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                     No trades found
                   </td>
                 </tr>
@@ -263,6 +265,9 @@ export default async function TradesPage({ searchParams }: PageProps) {
                         trade.pnl_points < 0 ? 'text-red' : 'text-muted'
                       }`}>
                         {trade.pnl_points ? formatPnl(Number(trade.pnl_points)) : '—'}
+                      </td>
+                      <td style={{ fontSize: '10px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)' }} title={trade.notes || ''}>
+                        {isHidden ? '—' : (trade.notes || '—')}
                       </td>
                     </tr>
                   )

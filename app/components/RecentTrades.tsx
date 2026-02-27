@@ -16,6 +16,7 @@ interface Trade {
   pnl_points?: number | null
   revealed?: boolean
   commitment_hash?: string | null  // If present, was a commit-reveal trade
+  notes?: string | null  // Trade thesis/reasoning from agent
 }
 
 interface RecentTradesProps {
@@ -170,6 +171,20 @@ export default function RecentTrades({ trades, agentId, totalTrades }: RecentTra
                   <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>OPEN</span>
                 ) : null}
               </div>
+              {/* Trade notes/thesis */}
+              {trade.notes && !isUnrevealed && (
+                <div style={{ 
+                  marginTop: '4px', 
+                  padding: '4px 8px', 
+                  background: 'rgba(245, 166, 35, 0.08)', 
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  color: 'var(--text-secondary)',
+                  fontStyle: 'italic'
+                }}>
+                  💭 {trade.notes}
+                </div>
+              )}
             </div>
           )
         })}
