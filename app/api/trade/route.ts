@@ -564,24 +564,45 @@ export async function POST(request: NextRequest) {
         .eq('agent_id', agent.id)
       const totalWorking = allPositions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
       
-      // CRITICAL: Update balance with error handling
+      // CRITICAL: Update balance with verification
+      const expectedCashOpen = Math.round(newCashBalance)
+      const expectedPointsOpen = Math.round(newCashBalance + totalWorking)
+      
       const { error: updateError } = await supabase.from('agents').update({ 
-        cash_balance: newCashBalance,
-        points: newCashBalance + totalWorking
+        cash_balance: expectedCashOpen,
+        points: expectedPointsOpen
       }).eq('id', agent.id)
       
       if (updateError) {
         console.error('CRITICAL: Failed to update agent balance after OPEN trade', {
           agent_id: agent.id,
           trade_id: trade?.id,
-          newCashBalance,
+          expectedCashOpen,
           error: updateError
         })
-        return NextResponse.json({
-          success: true,
-          warning: 'Trade recorded but balance update may have failed. Contact support.',
-          trade: { id: trade?.id, action: 'OPEN', ticker: upperTicker },
+      }
+      
+      // VERIFY the update actually worked
+      const { data: verifyAgentOpen } = await supabase
+        .from('agents')
+        .select('cash_balance')
+        .eq('id', agent.id)
+        .single()
+      
+      const actualCashOpen = Math.round(Number(verifyAgentOpen?.cash_balance) || 0)
+      if (Math.abs(actualCashOpen - expectedCashOpen) > 1) {
+        console.error('CRITICAL: Balance verification failed after OPEN', {
+          agent_id: agent.id,
+          trade_id: trade?.id,
+          expectedCashOpen,
+          actualCashOpen
         })
+        
+        // Retry the update
+        await supabase.from('agents').update({ 
+          cash_balance: expectedCashOpen,
+          points: expectedPointsOpen
+        }).eq('id', agent.id)
       }
       
       // Add fee to prize pool
@@ -673,25 +694,64 @@ export async function POST(request: NextRequest) {
         .eq('agent_id', agent.id)
       const totalWorking = remainingPositions?.reduce((sum, p) => sum + Number(p.amount_points), 0) || 0
       
-      // CRITICAL: Update balance with error handling
+      // CRITICAL: Update balance with verification
+      const expectedCash = Math.round(newCashBalance)
+      const expectedPoints = Math.round(newCashBalance + totalWorking)
+      
       const { error: updateError } = await supabase.from('agents').update({ 
-        cash_balance: newCashBalance,
-        points: newCashBalance + totalWorking
+        cash_balance: expectedCash,
+        points: expectedPoints
       }).eq('id', agent.id)
       
       if (updateError) {
         console.error('CRITICAL: Failed to update agent balance after CLOSE trade', {
           agent_id: agent.id,
           trade_id: trade?.id,
-          newCashBalance,
+          expectedCash,
+          expectedPoints,
           error: updateError
         })
-        // Trade is already recorded - return with warning
-        return NextResponse.json({
-          success: true,
-          warning: 'Trade recorded but balance update may have failed. Contact support.',
-          trade: { id: trade?.id, action: 'CLOSE', ticker: upperTicker },
+      }
+      
+      // VERIFY the update actually worked
+      const { data: verifyAgent } = await supabase
+        .from('agents')
+        .select('cash_balance')
+        .eq('id', agent.id)
+        .single()
+      
+      const actualCash = Math.round(Number(verifyAgent?.cash_balance) || 0)
+      if (Math.abs(actualCash - expectedCash) > 1) {
+        // Update didn't stick - force retry with raw SQL-like approach
+        console.error('CRITICAL: Balance verification failed after CLOSE', {
+          agent_id: agent.id,
+          trade_id: trade?.id,
+          expectedCash,
+          actualCash,
+          diff: expectedCash - actualCash
         })
+        
+        // Retry the update
+        await supabase.from('agents').update({ 
+          cash_balance: expectedCash,
+          points: expectedPoints
+        }).eq('id', agent.id)
+        
+        // If still fails, return warning
+        const { data: retryCheck } = await supabase
+          .from('agents')
+          .select('cash_balance')
+          .eq('id', agent.id)
+          .single()
+        
+        if (Math.abs(Math.round(Number(retryCheck?.cash_balance) || 0) - expectedCash) > 1) {
+          return NextResponse.json({
+            success: true,
+            warning: 'Trade recorded but balance update failed after retry. Contact support.',
+            trade: { id: trade?.id, action: 'CLOSE', ticker: upperTicker },
+            debug: { expectedCash, actualCash: retryCheck?.cash_balance }
+          })
+        }
       }
       
       // Add close fee to prize pool
