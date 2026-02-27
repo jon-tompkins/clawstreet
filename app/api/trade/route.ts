@@ -152,10 +152,141 @@ async function verifyApiKey(apiKey: string) {
   return data
 }
 
-// Get current price from Yahoo Finance
-async function getPrice(ticker: string): Promise<number | null> {
+// CoinGecko ID mapping for crypto tickers
+const COINGECKO_IDS: Record<string, string> = {
+  'BTC-USD': 'bitcoin',
+  'ETH-USD': 'ethereum',
+  'BNB-USD': 'binancecoin',
+  'XRP-USD': 'ripple',
+  'SOL-USD': 'solana',
+  'ADA-USD': 'cardano',
+  'DOGE-USD': 'dogecoin',
+  'TRX-USD': 'tron',
+  'AVAX-USD': 'avalanche-2',
+  'LINK-USD': 'chainlink',
+  'DOT-USD': 'polkadot',
+  'MATIC-USD': 'matic-network',
+  'TON11419-USD': 'the-open-network',
+  'SHIB-USD': 'shiba-inu',
+  'LTC-USD': 'litecoin',
+  'BCH-USD': 'bitcoin-cash',
+  'UNI-USD': 'uniswap',
+  'LEO-USD': 'leo-token',
+  'XLM-USD': 'stellar',
+  'ATOM-USD': 'cosmos',
+  'XMR-USD': 'monero',
+  'ETC-USD': 'ethereum-classic',
+  'OKB-USD': 'okb',
+  'FIL-USD': 'filecoin',
+  'HBAR-USD': 'hedera-hashgraph',
+  'NEAR-USD': 'near',
+  'ARB-USD': 'arbitrum',
+  'VET-USD': 'vechain',
+  'APT-USD': 'aptos',
+  'MKR-USD': 'maker',
+  'OP-USD': 'optimism',
+  'INJ-USD': 'injective-protocol',
+  'GRT-USD': 'the-graph',
+  'AAVE-USD': 'aave',
+  'ALGO-USD': 'algorand',
+  'RUNE-USD': 'thorchain',
+  'FTM-USD': 'fantom',
+  'QNT-USD': 'quant-network',
+  'THETA-USD': 'theta-token',
+  'KAS-USD': 'kaspa',
+  'RENDER-USD': 'render-token',
+  'IMX-USD': 'immutable-x',
+  'CRO-USD': 'crypto-com-chain',
+  'FLOW-USD': 'flow',
+  'AXS-USD': 'axie-infinity',
+  'SAND-USD': 'the-sandbox',
+  'MANA-USD': 'decentraland',
+  'EGLD-USD': 'elrond-erd-2',
+  'XTZ-USD': 'tezos',
+  'CHZ-USD': 'chiliz',
+  'NEO-USD': 'neo',
+  'KAVA-USD': 'kava',
+  'IOTA-USD': 'iota',
+  'ZEC-USD': 'zcash',
+  'CAKE-USD': 'pancakeswap-token',
+  'EOS-USD': 'eos',
+  'SNX-USD': 'havven',
+  'ROSE-USD': 'oasis-network',
+  'XDC-USD': 'xdce-crowd-sale',
+  'MINA-USD': 'mina-protocol',
+  'GALA-USD': 'gala',
+  'ENJ-USD': 'enjincoin',
+  'CRV-USD': 'curve-dao-token',
+  'LDO-USD': 'lido-dao',
+  '1INCH-USD': '1inch',
+  'COMP-USD': 'compound-governance-token',
+  'LRC-USD': 'loopring',
+  'ENS-USD': 'ethereum-name-service',
+  'BAT-USD': 'basic-attention-token',
+  'ZRX-USD': '0x',
+  'YFI-USD': 'yearn-finance',
+  'SUSHI-USD': 'sushi',
+  'CELO-USD': 'celo',
+  'ANKR-USD': 'ankr',
+  'STORJ-USD': 'storj',
+  'SKL-USD': 'skale',
+  'AUDIO-USD': 'audius',
+  'RLC-USD': 'iexec-rlc',
+  'NKN-USD': 'nkn',
+  'BAND-USD': 'band-protocol',
+  'OCEAN-USD': 'ocean-protocol',
+  'FET-USD': 'fetch-ai',
+  'AGIX-USD': 'singularitynet',
+  'RNDR-USD': 'render-token',
+  'MASK-USD': 'mask-network',
+  'API3-USD': 'api3',
+  'SSV-USD': 'ssv-network',
+  'GMX-USD': 'gmx',
+  'DYDX-USD': 'dydx',
+  'PENDLE-USD': 'pendle',
+  'STX-USD': 'blockstack',
+  'SUI-USD': 'sui',
+  'SEI-USD': 'sei-network',
+  'TIA-USD': 'celestia',
+  'JUP-USD': 'jupiter-exchange-solana',
+  'WIF-USD': 'dogwifcoin',
+  'BONK-USD': 'bonk',
+  'PEPE-USD': 'pepe',
+  'FLOKI-USD': 'floki',
+  'ORDI-USD': 'ordinals',
+}
+
+// Get crypto price from CoinGecko
+async function getCryptoPrice(ticker: string): Promise<number | null> {
+  const geckoId = COINGECKO_IDS[ticker.toUpperCase()]
+  if (!geckoId) return null
+  
   try {
-    const quote: any = await yahooFinance.quote(ticker)
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${geckoId}&vs_currencies=usd`,
+      { next: { revalidate: 30 } }
+    )
+    const data = await res.json()
+    return data[geckoId]?.usd || null
+  } catch {
+    return null
+  }
+}
+
+// Get current price - CoinGecko for crypto, Yahoo for stocks
+async function getPrice(ticker: string): Promise<number | null> {
+  const upperTicker = ticker.toUpperCase()
+  
+  // Use CoinGecko for crypto
+  if (CRYPTO_TICKERS.includes(upperTicker)) {
+    const cryptoPrice = await getCryptoPrice(upperTicker)
+    if (cryptoPrice) return cryptoPrice
+    // Fallback to Yahoo if CoinGecko fails
+  }
+  
+  // Use Yahoo Finance for stocks (and crypto fallback)
+  try {
+    const quote: any = await yahooFinance.quote(upperTicker)
     return quote?.regularMarketPrice || null
   } catch {
     return null

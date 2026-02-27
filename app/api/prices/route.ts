@@ -9,6 +9,163 @@ export const dynamic = 'force-dynamic'
 let priceCache: Record<string, { price: number; change: number; timestamp: number }> = {}
 const CACHE_TTL = 60 * 1000
 
+// Crypto tickers that should use CoinGecko
+const CRYPTO_TICKERS = [
+  'BTC-USD', 'ETH-USD', 'BNB-USD', 'XRP-USD', 'SOL-USD',
+  'ADA-USD', 'DOGE-USD', 'TRX-USD', 'AVAX-USD', 'LINK-USD',
+  'DOT-USD', 'MATIC-USD', 'TON11419-USD', 'SHIB-USD', 'LTC-USD',
+  'BCH-USD', 'UNI-USD', 'LEO-USD', 'XLM-USD', 'ATOM-USD',
+  'XMR-USD', 'ETC-USD', 'OKB-USD', 'FIL-USD', 'HBAR-USD',
+  'NEAR-USD', 'ARB-USD', 'VET-USD', 'APT-USD', 'MKR-USD',
+  'OP-USD', 'INJ-USD', 'GRT-USD', 'AAVE-USD', 'ALGO-USD',
+  'RUNE-USD', 'FTM-USD', 'QNT-USD', 'THETA-USD', 'KAS-USD',
+  'RENDER-USD', 'IMX-USD', 'CRO-USD', 'FLOW-USD', 'AXS-USD',
+  'SAND-USD', 'MANA-USD', 'EGLD-USD', 'XTZ-USD', 'CHZ-USD',
+  'NEO-USD', 'KAVA-USD', 'IOTA-USD', 'ZEC-USD', 'CAKE-USD',
+  'EOS-USD', 'SNX-USD', 'ROSE-USD', 'XDC-USD', 'MINA-USD',
+  'GALA-USD', 'ENJ-USD', 'CRV-USD', 'LDO-USD', '1INCH-USD',
+  'COMP-USD', 'LRC-USD', 'ENS-USD', 'BAT-USD', 'ZRX-USD',
+  'YFI-USD', 'SUSHI-USD', 'CELO-USD', 'ANKR-USD', 'STORJ-USD',
+  'SKL-USD', 'AUDIO-USD', 'RLC-USD', 'NKN-USD', 'BAND-USD',
+  'OCEAN-USD', 'FET-USD', 'AGIX-USD', 'RNDR-USD', 'MASK-USD',
+  'API3-USD', 'SSV-USD', 'GMX-USD', 'DYDX-USD', 'PENDLE-USD',
+  'STX-USD', 'SUI-USD', 'SEI-USD', 'TIA-USD', 'JUP-USD',
+  'WIF-USD', 'BONK-USD', 'PEPE-USD', 'FLOKI-USD', 'ORDI-USD',
+]
+
+// CoinGecko ID mapping
+const COINGECKO_IDS: Record<string, string> = {
+  'BTC-USD': 'bitcoin',
+  'ETH-USD': 'ethereum',
+  'BNB-USD': 'binancecoin',
+  'XRP-USD': 'ripple',
+  'SOL-USD': 'solana',
+  'ADA-USD': 'cardano',
+  'DOGE-USD': 'dogecoin',
+  'TRX-USD': 'tron',
+  'AVAX-USD': 'avalanche-2',
+  'LINK-USD': 'chainlink',
+  'DOT-USD': 'polkadot',
+  'MATIC-USD': 'matic-network',
+  'TON11419-USD': 'the-open-network',
+  'SHIB-USD': 'shiba-inu',
+  'LTC-USD': 'litecoin',
+  'BCH-USD': 'bitcoin-cash',
+  'UNI-USD': 'uniswap',
+  'LEO-USD': 'leo-token',
+  'XLM-USD': 'stellar',
+  'ATOM-USD': 'cosmos',
+  'XMR-USD': 'monero',
+  'ETC-USD': 'ethereum-classic',
+  'OKB-USD': 'okb',
+  'FIL-USD': 'filecoin',
+  'HBAR-USD': 'hedera-hashgraph',
+  'NEAR-USD': 'near',
+  'ARB-USD': 'arbitrum',
+  'VET-USD': 'vechain',
+  'APT-USD': 'aptos',
+  'MKR-USD': 'maker',
+  'OP-USD': 'optimism',
+  'INJ-USD': 'injective-protocol',
+  'GRT-USD': 'the-graph',
+  'AAVE-USD': 'aave',
+  'ALGO-USD': 'algorand',
+  'RUNE-USD': 'thorchain',
+  'FTM-USD': 'fantom',
+  'QNT-USD': 'quant-network',
+  'THETA-USD': 'theta-token',
+  'KAS-USD': 'kaspa',
+  'RENDER-USD': 'render-token',
+  'IMX-USD': 'immutable-x',
+  'CRO-USD': 'crypto-com-chain',
+  'FLOW-USD': 'flow',
+  'AXS-USD': 'axie-infinity',
+  'SAND-USD': 'the-sandbox',
+  'MANA-USD': 'decentraland',
+  'EGLD-USD': 'elrond-erd-2',
+  'XTZ-USD': 'tezos',
+  'CHZ-USD': 'chiliz',
+  'NEO-USD': 'neo',
+  'KAVA-USD': 'kava',
+  'IOTA-USD': 'iota',
+  'ZEC-USD': 'zcash',
+  'CAKE-USD': 'pancakeswap-token',
+  'EOS-USD': 'eos',
+  'SNX-USD': 'havven',
+  'ROSE-USD': 'oasis-network',
+  'XDC-USD': 'xdce-crowd-sale',
+  'MINA-USD': 'mina-protocol',
+  'GALA-USD': 'gala',
+  'ENJ-USD': 'enjincoin',
+  'CRV-USD': 'curve-dao-token',
+  'LDO-USD': 'lido-dao',
+  '1INCH-USD': '1inch',
+  'COMP-USD': 'compound-governance-token',
+  'LRC-USD': 'loopring',
+  'ENS-USD': 'ethereum-name-service',
+  'BAT-USD': 'basic-attention-token',
+  'ZRX-USD': '0x',
+  'YFI-USD': 'yearn-finance',
+  'SUSHI-USD': 'sushi',
+  'CELO-USD': 'celo',
+  'ANKR-USD': 'ankr',
+  'STORJ-USD': 'storj',
+  'SKL-USD': 'skale',
+  'AUDIO-USD': 'audius',
+  'RLC-USD': 'iexec-rlc',
+  'NKN-USD': 'nkn',
+  'BAND-USD': 'band-protocol',
+  'OCEAN-USD': 'ocean-protocol',
+  'FET-USD': 'fetch-ai',
+  'AGIX-USD': 'singularitynet',
+  'RNDR-USD': 'render-token',
+  'MASK-USD': 'mask-network',
+  'API3-USD': 'api3',
+  'SSV-USD': 'ssv-network',
+  'GMX-USD': 'gmx',
+  'DYDX-USD': 'dydx',
+  'PENDLE-USD': 'pendle',
+  'STX-USD': 'blockstack',
+  'SUI-USD': 'sui',
+  'SEI-USD': 'sei-network',
+  'TIA-USD': 'celestia',
+  'JUP-USD': 'jupiter-exchange-solana',
+  'WIF-USD': 'dogwifcoin',
+  'BONK-USD': 'bonk',
+  'PEPE-USD': 'pepe',
+  'FLOKI-USD': 'floki',
+  'ORDI-USD': 'ordinals',
+}
+
+// Fetch crypto prices from CoinGecko
+async function getCryptoPrices(symbols: string[]): Promise<Record<string, number>> {
+  const geckoIds = symbols
+    .map(s => COINGECKO_IDS[s.toUpperCase()])
+    .filter(Boolean)
+  
+  if (geckoIds.length === 0) return {}
+  
+  try {
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${geckoIds.join(',')}&vs_currencies=usd&include_24hr_change=true`,
+      { next: { revalidate: 30 } }
+    )
+    const data = await res.json()
+    
+    const results: Record<string, number> = {}
+    for (const symbol of symbols) {
+      const geckoId = COINGECKO_IDS[symbol.toUpperCase()]
+      if (geckoId && data[geckoId]?.usd) {
+        results[symbol.toUpperCase()] = data[geckoId].usd
+      }
+    }
+    return results
+  } catch (err) {
+    console.error('CoinGecko error:', err)
+    return {}
+  }
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const symbols = searchParams.get('symbols')?.split(',').filter(Boolean) || []
@@ -23,22 +180,38 @@ export async function GET(request: NextRequest) {
   
   const now = Date.now()
   const results: Record<string, { price: number; change: number; cached: boolean }> = {}
-  const toFetch: string[] = []
+  const toFetchCrypto: string[] = []
+  const toFetchStock: string[] = []
   
-  // Check cache first
+  // Check cache and categorize
   for (const symbol of symbols) {
-    const cached = priceCache[symbol]
+    const upperSymbol = symbol.toUpperCase()
+    const cached = priceCache[upperSymbol]
     if (cached && now - cached.timestamp < CACHE_TTL) {
-      results[symbol] = { price: cached.price, change: cached.change, cached: true }
+      results[upperSymbol] = { price: cached.price, change: cached.change, cached: true }
+    } else if (CRYPTO_TICKERS.includes(upperSymbol)) {
+      toFetchCrypto.push(upperSymbol)
     } else {
-      toFetch.push(symbol)
+      toFetchStock.push(upperSymbol)
     }
   }
   
-  // Fetch missing prices
-  if (toFetch.length > 0) {
+  // Fetch crypto from CoinGecko
+  if (toFetchCrypto.length > 0) {
+    const cryptoPrices = await getCryptoPrices(toFetchCrypto)
+    for (const symbol of toFetchCrypto) {
+      const price = cryptoPrices[symbol]
+      if (price) {
+        priceCache[symbol] = { price, change: 0, timestamp: now }
+        results[symbol] = { price, change: 0, cached: false }
+      }
+    }
+  }
+  
+  // Fetch stocks from Yahoo Finance
+  if (toFetchStock.length > 0) {
     try {
-      const quotes = await yahooFinance.quote(toFetch)
+      const quotes = await yahooFinance.quote(toFetchStock)
       const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
       
       for (const quote of quotesArray) {
@@ -51,7 +224,7 @@ export async function GET(request: NextRequest) {
         }
       }
     } catch (err) {
-      console.error('Error fetching prices:', err)
+      console.error('Yahoo Finance error:', err)
     }
   }
   
