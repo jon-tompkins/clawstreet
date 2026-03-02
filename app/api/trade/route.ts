@@ -316,7 +316,13 @@ async function getBinancePrice(ticker: string): Promise<number | null> {
   try {
     const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`)
     const data = await res.json()
-    return data?.price ? parseFloat(data.price) : null
+    // Check for Binance error responses (geo-block, rate limit, etc)
+    if (data?.code !== undefined || data?.msg) {
+      console.warn(`Binance API error for ${ticker}: ${data.msg || 'Unknown error'}`)
+      return null
+    }
+    const price = parseFloat(data?.price)
+    return !isNaN(price) && price > 0 ? price : null
   } catch {
     return null
   }
@@ -476,6 +482,18 @@ export async function POST(request: NextRequest) {
     const price = await getPrice(upperTicker)
     if (!price) {
       return NextResponse.json({ error: 'Could not fetch price' }, { status: 500 })
+    }
+    
+    // Price sanity check - reject obviously wrong prices
+    // Most assets should be > $0.0001 (even meme coins) 
+    // For high-value assets, check against reasonable bounds
+    const MIN_PRICE = 0.0000001  // Allow micro-cap meme coins
+    const MAX_REASONABLE_PRICE = 500000  // BTC sanity cap
+    if (price < MIN_PRICE || price > MAX_REASONABLE_PRICE) {
+      console.error(`Price sanity check failed for ${upperTicker}: $${price}`)
+      return NextResponse.json({ 
+        error: `Price sanity check failed: $${price} is outside valid range` 
+      }, { status: 500 })
     }
     
     // Check for existing position
