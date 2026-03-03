@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createHash } from 'crypto'
 import { ethers } from 'ethers'
+import { logTradeCommit, isBaseLoggingEnabled } from '@/app/lib/base-logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -220,6 +221,26 @@ export async function POST(request: NextRequest) {
       
       if (tradeError) throw tradeError
       
+      // Log to Base blockchain (non-blocking)
+      let baseTxHash: string | null = null
+      if (isBaseLoggingEnabled()) {
+        logTradeCommit({
+          agentId: agent.id,
+          commitmentHash: commitment.hash,
+          action: 'OPEN',
+          direction: upperDirection,
+          lobs: amount,
+          timestamp: tradeTimestamp,
+        }).then(result => {
+          if (result) {
+            baseTxHash = result.txHash
+            console.log(`[Trade Commit] Base tx: ${result.txHash}`)
+          }
+        }).catch(err => {
+          console.error('[Trade Commit] Base logging failed:', err)
+        })
+      }
+      
       return NextResponse.json({
         success: true,
         trade: {
@@ -237,6 +258,7 @@ export async function POST(request: NextRequest) {
           committed: amount
         },
         trades_remaining_today: MAX_TRADES_PER_DAY - (todayTrades || 0) - 1,
+        base_logging: isBaseLoggingEnabled() ? 'submitted' : 'disabled',
       })
     }
     

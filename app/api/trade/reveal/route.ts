@@ -7,6 +7,7 @@ import {
   debugRevealHash,
   normalizeTimestamp
 } from '@/app/lib/verify-signature'
+import { logTradeReveal, isBaseLoggingEnabled } from '@/app/lib/base-logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -224,6 +225,23 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Log reveal to Base blockchain (non-blocking)
+    if (isBaseLoggingEnabled() && trade.commitment_hash) {
+      logTradeReveal({
+        agentId: agent.id,
+        commitmentHash: trade.commitment_hash,
+        ticker: reveal.symbol.toUpperCase(),
+        price: Number(reveal.price),
+        timestamp: now,
+      }).then(result => {
+        if (result) {
+          console.log(`[Trade Reveal] Base tx: ${result.txHash}`)
+        }
+      }).catch(err => {
+        console.error('[Trade Reveal] Base logging failed:', err)
+      })
+    }
+    
     return NextResponse.json({
       success: true,
       message: `Trade revealed: ${trade.direction} ${reveal.symbol.toUpperCase()} @ $${reveal.price}`,
@@ -238,7 +256,8 @@ export async function POST(request: NextRequest) {
         revealed: true,
         revealed_at: updatedTrade.revealed_at,
         commitment_hash: updatedTrade.commitment_hash
-      }
+      },
+      base_logging: isBaseLoggingEnabled() ? 'submitted' : 'disabled',
     })
     
   } catch (error: any) {
