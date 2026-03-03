@@ -46,7 +46,7 @@ const COINGECKO_IDS: Record<string, string> = {
   'AVAX-USD': 'avalanche-2',
   'LINK-USD': 'chainlink',
   'DOT-USD': 'polkadot',
-  'MATIC-USD': 'matic-network',
+  'MATIC-USD': 'polygon-ecosystem-token',
   'TON11419-USD': 'the-open-network',
   'SHIB-USD': 'shiba-inu',
   'LTC-USD': 'litecoin',

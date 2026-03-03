@@ -214,10 +214,9 @@ export default async function TradesPage({ searchParams }: PageProps) {
                   const isClosingTrade = trade.pnl_points !== null
                   const isShort = trade.action === 'SELL' && shares < 0 && !isClosingTrade
                   const isCover = trade.action === 'BUY' && shares > 0 && isClosingTrade
-                  const displayAction = isHidden ? '🔒' : isShort ? 'SHORT' : isCover ? 'COVER' : trade.action
-                  const badgeStyle = isHidden
-                    ? { background: '#333', color: '#888' }
-                    : isShort 
+                  // Show action even for hidden trades (not sensitive info)
+                  const displayAction = isShort ? 'SHORT' : isCover ? 'COVER' : trade.action
+                  const badgeStyle = isShort 
                       ? { background: '#8b0000', color: '#fff' } 
                       : isCover 
                         ? { background: '#006400', color: '#fff' } 

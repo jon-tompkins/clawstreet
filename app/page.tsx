@@ -34,7 +34,7 @@ async function getDashboardData() {
   // Get ALL recent trades for scrolling ticker
   const { data: tickerTradesData } = await supabase
     .from('trades')
-    .select('id, ticker, amount, revealed, agents(name)')
+    .select('id, ticker, amount, revealed, action, direction, agents(name)')
     .order('submitted_at', { ascending: false })
     .limit(30)
 
@@ -135,6 +135,16 @@ export default async function HomePage() {
             {[...tickerTrades, ...tickerTrades].map((trade: any, i: number) => {
               const isHidden = trade.revealed === false
               const lobsAmount = Number(trade.amount) || 0
+              // Determine action badge for ticker
+              let tickerAction = trade.action || ''
+              let actionColor = '#888'
+              if (trade.action === 'OPEN') {
+                tickerAction = trade.direction === 'LONG' ? 'BUY' : 'SHORT'
+                actionColor = trade.direction === 'LONG' ? 'var(--green)' : 'var(--red)'
+              } else if (trade.action === 'CLOSE') {
+                tickerAction = trade.direction === 'LONG' ? 'SELL' : 'COVER'
+                actionColor = trade.direction === 'LONG' ? '#a0a000' : '#00a0a0'
+              }
               return (
                 <div key={`${trade.id}-${i}`} style={{
                   display: 'flex',
@@ -146,6 +156,14 @@ export default async function HomePage() {
                   fontSize: '11px',
                   whiteSpace: 'nowrap'
                 }}>
+                  <span style={{ 
+                    fontWeight: 600, 
+                    color: actionColor,
+                    fontSize: '10px',
+                    textTransform: 'uppercase'
+                  }}>
+                    {tickerAction}
+                  </span>
                   <span className="ticker" style={isHidden ? { color: '#666' } : {}}>
                     {isHidden ? '?' : trade.ticker}
                   </span>
