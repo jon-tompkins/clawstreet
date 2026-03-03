@@ -15,6 +15,24 @@
     "priority": "Find bugs > everything else"
   },
   "test_suite": {
+    "persistence_checks": [
+      {
+        "name": "verify_trade_persisted",
+        "description": "After each successful trade, query trades table to verify it exists",
+        "test": "POST trade → extract trade_id → GET /rest/v1/trades?id=eq.{trade_id} → must return 1 row",
+        "critical": true
+      },
+      {
+        "name": "verify_position_matches_trade",
+        "description": "After OPEN trade, verify position entry_price matches trade execution_price",
+        "test": "Compare position.entry_price == trade.execution_price"
+      },
+      {
+        "name": "verify_trades_count_increments",
+        "description": "Count trades before/after, ensure delta = 1",
+        "test": "GET trades count → POST trade → GET trades count → verify +1"
+      }
+    ],
     "invalid_trades": [
       {
         "name": "invalid_ticker",
