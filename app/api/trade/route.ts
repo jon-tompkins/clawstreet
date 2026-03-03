@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createHash } from 'crypto'
+import { ethers } from 'ethers'
 import YahooFinance from 'yahoo-finance2'
+import { logTradeCommit, logTradeReveal, isBaseLoggingEnabled } from '@/app/lib/base-logger'
 
 const yahooFinance = new YahooFinance()
 
@@ -656,6 +658,43 @@ export async function POST(request: NextRequest) {
       // Add fee to prize pool
       await addToPrizePool(supabase, fee)
       
+      // Log to Base blockchain (non-blocking)
+      // Regular trades get both commit + reveal logged immediately
+      if (isBaseLoggingEnabled()) {
+        // Generate a deterministic commitment hash for this trade
+        const tradeData = {
+          agent_id: agent.id,
+          action: 'OPEN',
+          side: upperDirection,
+          lobs: lobs,
+          symbol: upperTicker,
+          price: price,
+          timestamp: now.toISOString(),
+          nonce: trade?.id || crypto.randomUUID()
+        }
+        const canonicalJson = JSON.stringify(tradeData, Object.keys(tradeData).sort())
+        const commitmentHash = ethers.keccak256(ethers.toUtf8Bytes(canonicalJson))
+        
+        // Log commit
+        logTradeCommit({
+          agentId: agent.id,
+          commitmentHash,
+          action: 'OPEN',
+          direction: upperDirection,
+          lobs: lobs,
+          timestamp: now,
+        }).catch(err => console.error('[Trade] Base commit log failed:', err))
+        
+        // Log reveal immediately (regular trades are public)
+        logTradeReveal({
+          agentId: agent.id,
+          commitmentHash,
+          ticker: upperTicker,
+          price: price,
+          timestamp: now,
+        }).catch(err => console.error('[Trade] Base reveal log failed:', err))
+      }
+      
       return NextResponse.json({
         success: true,
         trade: {
@@ -675,6 +714,7 @@ export async function POST(request: NextRequest) {
           total: Math.round(newCashBalance + totalWorking),
         },
         trades_remaining_today: MAX_TRADES_PER_DAY - (todayTrades || 0) - 1,
+        base_logging: isBaseLoggingEnabled() ? 'submitted' : 'disabled',
       })
     }
     
@@ -867,6 +907,42 @@ export async function POST(request: NextRequest) {
       // Add close fee to prize pool
       await addToPrizePool(supabase, closeFee)
       
+      // Log to Base blockchain (non-blocking)
+      if (isBaseLoggingEnabled()) {
+        // Generate a deterministic commitment hash for this close trade
+        const tradeData = {
+          agent_id: agent.id,
+          action: 'CLOSE',
+          side: posDirection,
+          lobs: Math.round(netCloseValue),
+          symbol: upperTicker,
+          price: price,
+          timestamp: now.toISOString(),
+          nonce: trade?.id || crypto.randomUUID()
+        }
+        const canonicalJson = JSON.stringify(tradeData, Object.keys(tradeData).sort())
+        const commitmentHash = ethers.keccak256(ethers.toUtf8Bytes(canonicalJson))
+        
+        // Log commit
+        logTradeCommit({
+          agentId: agent.id,
+          commitmentHash,
+          action: 'CLOSE',
+          direction: posDirection,
+          lobs: Math.round(netCloseValue),
+          timestamp: now,
+        }).catch(err => console.error('[Trade] Base commit log failed:', err))
+        
+        // Log reveal immediately
+        logTradeReveal({
+          agentId: agent.id,
+          commitmentHash,
+          ticker: upperTicker,
+          price: price,
+          timestamp: now,
+        }).catch(err => console.error('[Trade] Base reveal log failed:', err))
+      }
+      
       const pnlSign = pnl >= 0 ? '+' : ''
       
       // Net P&L after fee
@@ -894,6 +970,7 @@ export async function POST(request: NextRequest) {
           total: Math.round(newCashBalance + totalWorking),
         },
         trades_remaining_today: MAX_TRADES_PER_DAY - (todayTrades || 0) - 1,
+        base_logging: isBaseLoggingEnabled() ? 'submitted' : 'disabled',
       })
     }
     
