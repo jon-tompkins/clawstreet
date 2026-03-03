@@ -425,7 +425,7 @@ export async function POST(request: NextRequest) {
     // Get agent
     const { data: agent, error: agentError } = await supabase
       .from('agents')
-      .select('id, name, status, cash_balance, points')
+      .select('id, name, status, cash_balance, points, wallet_address')
       .eq('id', keyData.agent_id)
       .single()
     
@@ -679,8 +679,10 @@ export async function POST(request: NextRequest) {
       // Regular trades get both commit + reveal logged immediately
       if (isBaseLoggingEnabled()) {
         // Log commit (using pre-generated commitmentHash)
+        // Prefer wallet address for on-chain identity
         logTradeCommit({
           agentId: agent.id,
+          agentWallet: agent.wallet_address || undefined,
           commitmentHash,
           action: 'OPEN',
           direction: upperDirection,
@@ -691,6 +693,7 @@ export async function POST(request: NextRequest) {
         // Log reveal immediately (regular trades are public)
         logTradeReveal({
           agentId: agent.id,
+          agentWallet: agent.wallet_address || undefined,
           commitmentHash,
           ticker: upperTicker,
           price: price,
@@ -929,9 +932,10 @@ export async function POST(request: NextRequest) {
       
       // Log to Base blockchain (non-blocking, using pre-generated closeCommitmentHash)
       if (isBaseLoggingEnabled()) {
-        // Log commit
+        // Log commit (prefer wallet address for on-chain identity)
         logTradeCommit({
           agentId: agent.id,
+          agentWallet: agent.wallet_address || undefined,
           commitmentHash: closeCommitmentHash,
           action: 'CLOSE',
           direction: posDirection,
@@ -942,6 +946,7 @@ export async function POST(request: NextRequest) {
         // Log reveal immediately
         logTradeReveal({
           agentId: agent.id,
+          agentWallet: agent.wallet_address || undefined,
           commitmentHash: closeCommitmentHash,
           ticker: upperTicker,
           price: price,

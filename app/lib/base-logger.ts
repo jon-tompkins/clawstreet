@@ -50,12 +50,37 @@ function getContract(): ethers.Contract | null {
 
 /**
  * Convert a UUID string to bytes32 (keccak256 hash)
+ * @deprecated Use walletToBytes32 for new code
  */
 export function uuidToBytes32(uuid: string): string {
   // Remove dashes and convert to consistent format
   const normalized = uuid.toLowerCase().replace(/-/g, '')
   // Hash the UUID string to get bytes32
   return ethers.keccak256(ethers.toUtf8Bytes(normalized))
+}
+
+/**
+ * Convert a wallet address to bytes32 (left-padded)
+ * This is the preferred method - wallet = identity
+ */
+export function walletToBytes32(wallet: string): string {
+  // Ensure valid address format
+  const address = ethers.getAddress(wallet) // checksums and validates
+  // Pad to 32 bytes (address is 20 bytes)
+  return ethers.zeroPadValue(address, 32)
+}
+
+/**
+ * Convert agent identifier to bytes32
+ * Supports both wallet addresses (0x...) and UUIDs
+ */
+export function agentToBytes32(agentIdOrWallet: string): string {
+  // If it looks like an Ethereum address, use wallet method
+  if (agentIdOrWallet.startsWith('0x') && agentIdOrWallet.length === 42) {
+    return walletToBytes32(agentIdOrWallet)
+  }
+  // Otherwise treat as UUID (legacy)
+  return uuidToBytes32(agentIdOrWallet)
 }
 
 /**
@@ -87,11 +112,12 @@ export function dateToTimestamp(date: Date): bigint {
 }
 
 interface LogCommitParams {
-  agentId: string        // UUID
-  commitmentHash: string // 0x... hash
-  action: string         // OPEN or CLOSE
-  direction: string      // LONG or SHORT
-  lobs: number          // Amount in LOBS
+  agentId?: string        // UUID (legacy)
+  agentWallet?: string    // Wallet address (preferred)
+  commitmentHash: string  // 0x... hash
+  action: string          // OPEN or CLOSE
+  direction: string       // LONG or SHORT
+  lobs: number           // Amount in LOBS
   timestamp: Date
 }
 
@@ -119,11 +145,21 @@ export async function logTradeCommit(params: LogCommitParams): Promise<LogCommit
     const contract = getContract()
     if (!contract) return null
     
-    const agentIdBytes32 = uuidToBytes32(params.agentId)
+    // Prefer wallet address, fall back to UUID
+    const agentIdentifier = params.agentWallet || params.agentId
+    if (!agentIdentifier) {
+      console.error('[Base Logger] No agent identifier provided')
+      return null
+    }
+    
+    const agentIdBytes32 = agentToBytes32(agentIdentifier)
     const commitmentHashBytes32 = hashToBytes32(params.commitmentHash)
     const timestamp = dateToTimestamp(params.timestamp)
     
-    console.log(`[Base Logger] Logging commit: agent=${params.agentId.slice(0, 8)}... action=${params.action} direction=${params.direction} lobs=${params.lobs}`)
+    const displayId = params.agentWallet 
+      ? `wallet=${params.agentWallet.slice(0, 10)}...`
+      : `uuid=${params.agentId?.slice(0, 8)}...`
+    console.log(`[Base Logger] Logging commit: ${displayId} action=${params.action} direction=${params.direction} lobs=${params.lobs}`)
     
     // Send transaction (don't wait for confirmation)
     const tx = await contract.logCommit(
@@ -161,10 +197,11 @@ export async function logTradeCommit(params: LogCommitParams): Promise<LogCommit
 }
 
 interface LogRevealParams {
-  agentId: string        // UUID
-  commitmentHash: string // 0x... hash (original commitment)
-  ticker: string         // Symbol (e.g., NVDA, BTC)
-  price: number         // Execution price
+  agentId?: string        // UUID (legacy)
+  agentWallet?: string    // Wallet address (preferred)
+  commitmentHash: string  // 0x... hash (original commitment)
+  ticker: string          // Symbol (e.g., NVDA, BTC)
+  price: number          // Execution price
   timestamp: Date
 }
 
@@ -193,12 +230,22 @@ export async function logTradeReveal(params: LogRevealParams): Promise<LogReveal
     const contract = getContract()
     if (!contract) return null
     
-    const agentIdBytes32 = uuidToBytes32(params.agentId)
+    // Prefer wallet address, fall back to UUID
+    const agentIdentifier = params.agentWallet || params.agentId
+    if (!agentIdentifier) {
+      console.error('[Base Logger] No agent identifier provided')
+      return null
+    }
+    
+    const agentIdBytes32 = agentToBytes32(agentIdentifier)
     const commitmentHashBytes32 = hashToBytes32(params.commitmentHash)
     const scaledPrice = scalePrice(params.price)
     const timestamp = dateToTimestamp(params.timestamp)
     
-    console.log(`[Base Logger] Logging reveal: agent=${params.agentId.slice(0, 8)}... ticker=${params.ticker} price=${params.price}`)
+    const displayId = params.agentWallet 
+      ? `wallet=${params.agentWallet.slice(0, 10)}...`
+      : `uuid=${params.agentId?.slice(0, 8)}...`
+    console.log(`[Base Logger] Logging reveal: ${displayId} ticker=${params.ticker} price=${params.price}`)
     
     // Send transaction (don't wait for confirmation)
     const tx = await contract.logReveal(
