@@ -555,7 +555,7 @@ export async function POST(request: NextRequest) {
       const signedShares = upperDirection === 'SHORT' ? -shares : shares
       
       // Record trade FIRST - trigger creates position automatically
-      const { data: trade, error: tradeError } = await supabase.from('trades').insert({
+      const tradePayload = {
         agent_id: agent.id,
         ticker: upperTicker,
         action: 'OPEN',
@@ -568,9 +568,39 @@ export async function POST(request: NextRequest) {
         reveal_date: revealDate,
         submitted_at: now.toISOString(),
         revealed: true,  // Regular trades are always revealed (commit-reveal trades use /api/trade/commit)
-      }).select().single()
+      }
       
-      if (tradeError) throw tradeError
+      console.log('[TRADE-DEBUG] Inserting trade:', JSON.stringify(tradePayload))
+      
+      const { data: trade, error: tradeError } = await supabase
+        .from('trades')
+        .insert(tradePayload)
+        .select()
+        .single()
+      
+      console.log('[TRADE-DEBUG] Insert result:', { trade_id: trade?.id, error: tradeError?.message || null })
+      
+      if (tradeError) {
+        console.error('[TRADE-DEBUG] Trade insert FAILED:', tradeError)
+        throw tradeError
+      }
+      
+      // VERIFY trade was actually inserted
+      const { data: verifyTrade } = await supabase
+        .from('trades')
+        .select('id')
+        .eq('id', trade.id)
+        .single()
+      
+      if (!verifyTrade) {
+        console.error('[TRADE-DEBUG] CRITICAL: Trade insert returned ID but verification failed!', { 
+          returned_id: trade.id,
+          agent_id: agent.id,
+          ticker: upperTicker
+        })
+      } else {
+        console.log('[TRADE-DEBUG] Trade verified in DB:', trade.id)
+      }
       
       // Update cash balance (deduct amount + fee)
       const newCashBalance = cashBalance - totalCost
@@ -694,7 +724,7 @@ export async function POST(request: NextRequest) {
       const signedSharesClosed = posDirection === 'SHORT' ? posShares : -posShares
       
       // Record trade FIRST - trigger deletes position automatically
-      const { data: trade, error: tradeError } = await supabase.from('trades').insert({
+      const closeTradePayload = {
         agent_id: agent.id,
         ticker: upperTicker,
         action: 'CLOSE',
@@ -711,9 +741,39 @@ export async function POST(request: NextRequest) {
         submitted_at: now.toISOString(),
         revealed: true,
         opening_trade_id: openingTrade?.id || null,
-      }).select().single()
+      }
       
-      if (tradeError) throw tradeError
+      console.log('[TRADE-DEBUG] Inserting CLOSE trade:', JSON.stringify(closeTradePayload))
+      
+      const { data: trade, error: tradeError } = await supabase
+        .from('trades')
+        .insert(closeTradePayload)
+        .select()
+        .single()
+      
+      console.log('[TRADE-DEBUG] CLOSE insert result:', { trade_id: trade?.id, error: tradeError?.message || null })
+      
+      if (tradeError) {
+        console.error('[TRADE-DEBUG] CLOSE trade insert FAILED:', tradeError)
+        throw tradeError
+      }
+      
+      // VERIFY trade was actually inserted
+      const { data: verifyCloseTrade } = await supabase
+        .from('trades')
+        .select('id')
+        .eq('id', trade.id)
+        .single()
+      
+      if (!verifyCloseTrade) {
+        console.error('[TRADE-DEBUG] CRITICAL: CLOSE trade insert returned ID but verification failed!', { 
+          returned_id: trade.id,
+          agent_id: agent.id,
+          ticker: upperTicker
+        })
+      } else {
+        console.log('[TRADE-DEBUG] CLOSE trade verified in DB:', trade.id)
+      }
       
       // If the opening trade was hidden (commit-reveal), reveal it now
       if (openingTrade && openingTrade.revealed === false) {
