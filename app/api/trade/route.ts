@@ -556,6 +556,21 @@ export async function POST(request: NextRequest) {
       const shares = lobs / price
       const signedShares = upperDirection === 'SHORT' ? -shares : shares
       
+      // Generate commitment hash for on-chain linking
+      const tradeNonce = crypto.randomUUID()
+      const tradeDataForHash = {
+        agent_id: agent.id,
+        action: 'OPEN',
+        side: upperDirection,
+        lobs: lobs,
+        symbol: upperTicker,
+        price: price,
+        timestamp: now.toISOString(),
+        nonce: tradeNonce
+      }
+      const canonicalJson = JSON.stringify(tradeDataForHash, Object.keys(tradeDataForHash).sort())
+      const commitmentHash = ethers.keccak256(ethers.toUtf8Bytes(canonicalJson))
+      
       // Record trade FIRST - trigger creates position automatically
       const tradePayload = {
         agent_id: agent.id,
@@ -570,6 +585,8 @@ export async function POST(request: NextRequest) {
         reveal_date: revealDate,
         submitted_at: now.toISOString(),
         revealed: true,  // Regular trades are always revealed (commit-reveal trades use /api/trade/commit)
+        commitment_hash: commitmentHash,  // Store for on-chain linking
+        reveal_nonce: tradeNonce,
       }
       
       console.log('[TRADE-DEBUG] Inserting trade:', JSON.stringify(tradePayload))
@@ -661,21 +678,7 @@ export async function POST(request: NextRequest) {
       // Log to Base blockchain (non-blocking)
       // Regular trades get both commit + reveal logged immediately
       if (isBaseLoggingEnabled()) {
-        // Generate a deterministic commitment hash for this trade
-        const tradeData = {
-          agent_id: agent.id,
-          action: 'OPEN',
-          side: upperDirection,
-          lobs: lobs,
-          symbol: upperTicker,
-          price: price,
-          timestamp: now.toISOString(),
-          nonce: trade?.id || crypto.randomUUID()
-        }
-        const canonicalJson = JSON.stringify(tradeData, Object.keys(tradeData).sort())
-        const commitmentHash = ethers.keccak256(ethers.toUtf8Bytes(canonicalJson))
-        
-        // Log commit
+        // Log commit (using pre-generated commitmentHash)
         logTradeCommit({
           agentId: agent.id,
           commitmentHash,
@@ -774,6 +777,21 @@ export async function POST(request: NextRequest) {
       const netCloseValue = closeValue - closeFee
       const signedSharesClosed = posDirection === 'SHORT' ? posShares : -posShares
       
+      // Generate commitment hash for on-chain linking
+      const closeNonce = crypto.randomUUID()
+      const closeDataForHash = {
+        agent_id: agent.id,
+        action: 'CLOSE',
+        side: posDirection,
+        lobs: Math.round(netCloseValue),
+        symbol: upperTicker,
+        price: price,
+        timestamp: now.toISOString(),
+        nonce: closeNonce
+      }
+      const closeCanonicalJson = JSON.stringify(closeDataForHash, Object.keys(closeDataForHash).sort())
+      const closeCommitmentHash = ethers.keccak256(ethers.toUtf8Bytes(closeCanonicalJson))
+      
       // Record trade FIRST - trigger deletes position automatically
       const closeTradePayload = {
         agent_id: agent.id,
@@ -792,6 +810,8 @@ export async function POST(request: NextRequest) {
         submitted_at: now.toISOString(),
         revealed: true,
         opening_trade_id: openingTrade?.id || null,
+        commitment_hash: closeCommitmentHash,  // Store for on-chain linking
+        reveal_nonce: closeNonce,
       }
       
       console.log('[TRADE-DEBUG] Inserting CLOSE trade:', JSON.stringify(closeTradePayload))
@@ -907,26 +927,12 @@ export async function POST(request: NextRequest) {
       // Add close fee to prize pool
       await addToPrizePool(supabase, closeFee)
       
-      // Log to Base blockchain (non-blocking)
+      // Log to Base blockchain (non-blocking, using pre-generated closeCommitmentHash)
       if (isBaseLoggingEnabled()) {
-        // Generate a deterministic commitment hash for this close trade
-        const tradeData = {
-          agent_id: agent.id,
-          action: 'CLOSE',
-          side: posDirection,
-          lobs: Math.round(netCloseValue),
-          symbol: upperTicker,
-          price: price,
-          timestamp: now.toISOString(),
-          nonce: trade?.id || crypto.randomUUID()
-        }
-        const canonicalJson = JSON.stringify(tradeData, Object.keys(tradeData).sort())
-        const commitmentHash = ethers.keccak256(ethers.toUtf8Bytes(canonicalJson))
-        
         // Log commit
         logTradeCommit({
           agentId: agent.id,
-          commitmentHash,
+          commitmentHash: closeCommitmentHash,
           action: 'CLOSE',
           direction: posDirection,
           lobs: Math.round(netCloseValue),
@@ -936,7 +942,7 @@ export async function POST(request: NextRequest) {
         // Log reveal immediately
         logTradeReveal({
           agentId: agent.id,
-          commitmentHash,
+          commitmentHash: closeCommitmentHash,
           ticker: upperTicker,
           price: price,
           timestamp: now,
