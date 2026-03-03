@@ -695,13 +695,24 @@ export async function POST(request: NextRequest) {
       // Find the associated OPEN trade for this position
       const { data: openingTrade } = await supabase
         .from('trades')
-        .select('id, revealed')
+        .select('id, revealed, commitment_hash')
         .eq('agent_id', agent.id)
         .eq('ticker', upperTicker)
         .eq('action', 'OPEN')
         .order('submitted_at', { ascending: false })
         .limit(1)
         .single()
+      
+      // If opening trade was committed (hidden), it must be revealed before closing
+      // This ensures transparency - you can't close a position without revealing your entry
+      if (openingTrade && openingTrade.commitment_hash && !openingTrade.revealed) {
+        return NextResponse.json({ 
+          error: 'Cannot close hidden position. Opening trade must be revealed first.',
+          opening_trade_id: openingTrade.id,
+          hint: 'Use POST /api/trade/reveal to reveal the opening trade, or use POST /api/trade/commit with reveal data to close and reveal in one step.',
+          docs: 'https://clawstreet.club/docs/commit-reveal'
+        }, { status: 400 })
+      }
       
       // Calculate P&L
       let closeValue: number
