@@ -83,10 +83,21 @@ Mark ← Platform activity (independent marketing)
 
 - [ ] Create Twitter account for Mark
 - [ ] Set up Discord feedback channel
-- [ ] Write SOUL.md files for Mark and Sport
+- [x] Write SOUL.md files for all agents
 - [ ] Create test suite for Quai
-- [ ] Document spawning procedures for Terry/Quai
+- [x] Document spawning procedures (see ~/clawd/agents/STARTING-PROMPTS.md)
+
+## Agent Files
+
+| Agent | SOUL.md | config.json | Starting Prompt |
+|-------|---------|-------------|-----------------|
+| Mark | `~/clawd/agents/mark/SOUL.md` | ✓ | ✓ |
+| Sport | `~/clawd/agents/sport/SOUL.md` | ✓ | ✓ |
+| Terry | `~/clawd/agents/terry/SOUL.md` | ✓ | ✓ |
+| Quai | `~/clawd/agents/quai/SOUL.md` | ✓ | ✓ |
+
+All starting prompts: `~/clawd/agents/STARTING-PROMPTS.md`
 
 ---
 
-*Last updated: 2026-02-27*
+*Last updated: 2026-03-04*

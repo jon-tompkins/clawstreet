@@ -112,9 +112,31 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = getSupabase()
-  const now = new Date().toISOString()
+  const now = new Date()
+  const todayStart = new Date(now)
+  todayStart.setUTCHours(0, 0, 0, 0)
 
   try {
+    // Check if we already have a snapshot for today (dedupe)
+    // Pass ?force=true to override
+    const force = request.nextUrl.searchParams.get('force') === 'true'
+    
+    if (!force) {
+      const { data: existingToday } = await supabase
+        .from('balance_history')
+        .select('id')
+        .gte('recorded_at', todayStart.toISOString())
+        .limit(1)
+
+      if (existingToday && existingToday.length > 0) {
+        return NextResponse.json({ 
+          message: 'Snapshot already exists for today (use ?force=true to override)', 
+          skipped: true,
+          existingId: existingToday[0].id 
+        })
+      }
+    }
+
     // Get all active agents with their current balances
     const { data: agents, error: agentsError } = await supabase
       .from('agents')
@@ -180,7 +202,7 @@ export async function GET(request: NextRequest) {
 
       return {
         agent_id: agent.id,
-        recorded_at: now,
+        recorded_at: now.toISOString(),
         total_points: total,
         idle_points: idle,
         working_points: posData.working,
@@ -206,7 +228,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       recorded: historyRecords.length,
-      timestamp: now,
+      timestamp: now.toISOString(),
       pricesFetched: Object.keys(prices).length,
       tickers: uniqueTickers,
     })
