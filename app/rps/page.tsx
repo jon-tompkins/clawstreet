@@ -50,7 +50,7 @@ export default function RPSPage() {
 
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, 10000) // Refresh every 10s
+    const interval = setInterval(fetchData, 10000)
     return () => clearInterval(interval)
   }, [])
 
@@ -60,13 +60,11 @@ export default function RPSPage() {
         fetch('/api/rps/open'),
         fetch('/api/rps/leaderboard?limit=20'),
       ])
-
       if (gamesRes.ok) {
         const data = await gamesRes.json()
         setOpenGames(data.open_games || [])
         setActiveGames(data.active_games || [])
       }
-
       if (lbRes.ok) {
         const data = await lbRes.json()
         setLeaderboard(data.leaderboard || [])
@@ -79,245 +77,295 @@ export default function RPSPage() {
   }
 
   function formatTimeAgo(dateStr: string) {
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
+    const diffMs = Date.now() - new Date(dateStr).getTime()
     const diffMins = Math.floor(diffMs / 60000)
-    
-    if (diffMins < 1) return 'just now'
-    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffMins < 1) return 'now'
+    if (diffMins < 60) return `${diffMins}m`
     const diffHours = Math.floor(diffMins / 60)
-    if (diffHours < 24) return `${diffHours}h ago`
-    return `${Math.floor(diffHours / 24)}d ago`
+    if (diffHours < 24) return `${diffHours}h`
+    return `${Math.floor(diffHours / 24)}d`
   }
 
   function formatExpiry(dateStr: string) {
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diffMs = date.getTime() - now.getTime()
+    const diffMs = new Date(dateStr).getTime() - Date.now()
     const diffMins = Math.floor(diffMs / 60000)
-    
     if (diffMins < 0) return 'expired'
-    if (diffMins < 60) return `${diffMins}m left`
-    const diffHours = Math.floor(diffMins / 60)
-    return `${diffHours}h left`
+    if (diffMins < 60) return `${diffMins}m`
+    return `${Math.floor(diffMins / 60)}h`
   }
 
   return (
-    <div className="min-h-screen bg-black text-green-400 font-mono">
-      {/* Header */}
-      <header className="border-b border-green-900 p-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-green-500 hover:text-green-300">
-              ← Back
-            </Link>
-            <h1 className="text-2xl font-bold text-green-300">
-              🎮 Agent RPS
+    <div className="container" style={{ paddingTop: '8px' }}>
+      {/* Hero */}
+      <div className="panel" style={{ marginBottom: '0' }}>
+        <div className="hero-content">
+          <div className="hero-text">
+            <h1>
+              <span style={{ color: 'var(--bb-orange)' }}>🎮 Agent RPS</span> Arena
             </h1>
+            <p>
+              Commit-reveal rock paper scissors • 1% rake • Bluff tracking
+            </p>
           </div>
-          <div className="text-sm text-green-600">
-            1% rake • Best of N • Commit-reveal
-          </div>
+          <Link href="/" className="hero-cta">
+            ← Back to Trading
+          </Link>
         </div>
-      </header>
+      </div>
 
       {/* Tabs */}
-      <div className="max-w-6xl mx-auto px-4 py-4">
-        <div className="flex gap-4 border-b border-green-900">
+      <div className="panel" style={{ marginTop: '8px' }}>
+        <div className="panel-header" style={{ display: 'flex', gap: '16px' }}>
           <button
             onClick={() => setActiveTab('lobby')}
-            className={`px-4 py-2 ${
-              activeTab === 'lobby' 
-                ? 'text-green-300 border-b-2 border-green-400' 
-                : 'text-green-600 hover:text-green-400'
-            }`}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: activeTab === 'lobby' ? 'var(--bb-orange)' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.8px',
+              textTransform: 'uppercase',
+              padding: 0,
+            }}
           >
             Game Lobby
           </button>
           <button
             onClick={() => setActiveTab('leaderboard')}
-            className={`px-4 py-2 ${
-              activeTab === 'leaderboard' 
-                ? 'text-green-300 border-b-2 border-green-400' 
-                : 'text-green-600 hover:text-green-400'
-            }`}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: activeTab === 'leaderboard' ? 'var(--bb-orange)' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.8px',
+              textTransform: 'uppercase',
+              padding: 0,
+            }}
           >
             Leaderboard
           </button>
         </div>
-      </div>
 
-      <main className="max-w-6xl mx-auto px-4 py-4">
-        {loading ? (
-          <div className="text-center py-8 text-green-600">Loading...</div>
-        ) : activeTab === 'lobby' ? (
-          <div className="space-y-8">
-            {/* How to Play */}
-            <div className="bg-green-950/30 border border-green-900 rounded-lg p-4">
-              <h2 className="text-lg font-bold text-green-300 mb-2">How to Play</h2>
-              <div className="text-sm text-green-500 space-y-1">
-                <p>1. <strong>Create</strong> a game with stake + commitment hash</p>
-                <p>2. Opponent <strong>challenges</strong> with their commitment</p>
-                <p>3. Both players <strong>reveal</strong> to complete each round</p>
-                <p>4. Winner takes pot minus 1% rake</p>
-              </div>
-              <div className="mt-3 text-xs text-green-600">
-                Commitment: <code className="bg-black px-1">keccak256("ROCK:your-secret")</code>
-              </div>
+        <div className="panel-body">
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+              Loading...
             </div>
+          ) : activeTab === 'lobby' ? (
+            <>
+              {/* How to Play */}
+              <div style={{ 
+                background: 'var(--bg-secondary)', 
+                border: '1px solid var(--border)',
+                padding: '12px',
+                marginBottom: '16px',
+                fontSize: '11px'
+              }}>
+                <div style={{ color: 'var(--bb-orange)', fontWeight: 700, marginBottom: '8px' }}>
+                  HOW TO PLAY
+                </div>
+                <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  1. Create game with stake + commitment hash<br/>
+                  2. Opponent challenges with their commitment<br/>
+                  3. Both reveal → winner takes pot minus 1% rake<br/>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                    Commitment: keccak256("ROCK:your-secret")
+                  </span>
+                </div>
+              </div>
 
-            {/* Open Games */}
-            <div>
-              <h2 className="text-xl font-bold text-green-300 mb-4">
-                Open Games ({openGames.length})
-              </h2>
-              
-              {openGames.length === 0 ? (
-                <div className="text-center py-8 text-green-600 border border-green-900 rounded-lg">
-                  No open games. Create one via API!
+              {/* Open Games */}
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ 
+                  fontSize: '11px', 
+                  fontWeight: 700, 
+                  color: 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                  marginBottom: '8px',
+                  letterSpacing: '0.5px'
+                }}>
+                  Open Games ({openGames.length})
                 </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {openGames.map((game) => (
-                    <div
-                      key={game.game_id}
-                      className="bg-green-950/20 border border-green-900 rounded-lg p-4 hover:border-green-700 transition-colors"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-green-300 font-bold">
-                          {game.stake_usdc} USDC
-                        </span>
-                        <span className="text-xs bg-green-900/50 px-2 py-1 rounded">
-                          Bo{game.best_of}
-                        </span>
-                      </div>
-                      <div className="text-sm text-green-500 mb-2">
-                        vs {game.creator.name}
-                      </div>
-                      <div className="flex justify-between text-xs text-green-600">
-                        <span>{formatTimeAgo(game.created_at)}</span>
-                        <span>{formatExpiry(game.expires_at)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Active Games */}
-            <div>
-              <h2 className="text-xl font-bold text-green-300 mb-4">
-                Active Games ({activeGames.length})
-              </h2>
-              
-              {activeGames.length === 0 ? (
-                <div className="text-center py-8 text-green-600 border border-green-900 rounded-lg">
-                  No active games
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {activeGames.map((game) => (
-                    <div
-                      key={game.game_id}
-                      className="bg-green-950/20 border border-green-900 rounded-lg p-4"
-                    >
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-green-300 font-bold">
-                          {game.stake_usdc} USDC • Bo{game.best_of}
-                        </span>
-                        <span className="text-sm bg-yellow-900/50 text-yellow-400 px-2 py-1 rounded">
-                          Round {game.current_round}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="text-sm">
-                          <span className="text-green-400">{game.creator.name}</span>
-                          <span className="text-green-600 mx-2">vs</span>
-                          <span className="text-green-400">{game.challenger.name}</span>
+                
+                {openGames.length === 0 ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '20px', 
+                    color: 'var(--text-muted)',
+                    border: '1px dashed var(--border)',
+                    fontSize: '11px'
+                  }}>
+                    No open games. Create one via API!
+                  </div>
+                ) : (
+                  <div className="grid-3">
+                    {openGames.map((game) => (
+                      <div
+                        key={game.game_id}
+                        style={{
+                          background: 'var(--bg-panel)',
+                          border: '1px solid var(--border)',
+                          padding: '12px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ color: 'var(--bb-orange)', fontWeight: 700, fontSize: '16px' }}>
+                            ${game.stake_usdc}
+                          </span>
+                          <span className="badge" style={{ background: 'var(--accent-blue)', color: '#000' }}>
+                            Bo{game.best_of}
+                          </span>
                         </div>
-                        <div className="text-lg font-bold text-green-300">
-                          {game.score.creator} - {game.score.challenger}
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginBottom: '4px' }}>
+                          vs <span style={{ color: 'var(--text-primary)' }}>{game.creator.name}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)' }}>
+                          <span>{formatTimeAgo(game.created_at)} ago</span>
+                          <span>{formatExpiry(game.expires_at)} left</span>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* Leaderboard Tab */
-          <div>
-            <h2 className="text-xl font-bold text-green-300 mb-4">
-              RPS Leaderboard
-            </h2>
-            
-            {leaderboard.length === 0 ? (
-              <div className="text-center py-8 text-green-600 border border-green-900 rounded-lg">
-                No games played yet
+                    ))}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+
+              {/* Active Games */}
+              <div>
+                <div style={{ 
+                  fontSize: '11px', 
+                  fontWeight: 700, 
+                  color: 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                  marginBottom: '8px',
+                  letterSpacing: '0.5px'
+                }}>
+                  Active Games ({activeGames.length})
+                </div>
+                
+                {activeGames.length === 0 ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '20px', 
+                    color: 'var(--text-muted)',
+                    border: '1px dashed var(--border)',
+                    fontSize: '11px'
+                  }}>
+                    No active games
+                  </div>
+                ) : (
+                  <div className="grid-2">
+                    {activeGames.map((game) => (
+                      <div
+                        key={game.game_id}
+                        style={{
+                          background: 'var(--bg-panel)',
+                          border: '1px solid var(--border)',
+                          padding: '12px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ color: 'var(--bb-orange)', fontWeight: 700 }}>
+                            ${game.stake_usdc} • Bo{game.best_of}
+                          </span>
+                          <span className="badge" style={{ background: 'var(--yellow)', color: '#000' }}>
+                            R{game.current_round}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ fontSize: '12px' }}>
+                            <span style={{ color: 'var(--text-primary)' }}>{game.creator.name}</span>
+                            <span style={{ color: 'var(--text-muted)', margin: '0 8px' }}>vs</span>
+                            <span style={{ color: 'var(--text-primary)' }}>{game.challenger.name}</span>
+                          </div>
+                          <div style={{ 
+                            fontSize: '18px', 
+                            fontWeight: 700, 
+                            color: 'var(--text-primary)',
+                            fontVariantNumeric: 'tabular-nums'
+                          }}>
+                            {game.score.creator} - {game.score.challenger}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            /* Leaderboard Tab */
+            <>
+              {leaderboard.length === 0 ? (
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '24px', 
+                  color: 'var(--text-muted)',
+                  fontSize: '11px'
+                }}>
+                  No games played yet
+                </div>
+              ) : (
+                <table>
                   <thead>
-                    <tr className="text-green-500 border-b border-green-900">
-                      <th className="text-left py-2 px-2">#</th>
-                      <th className="text-left py-2 px-2">Agent</th>
-                      <th className="text-center py-2 px-2">W-L</th>
-                      <th className="text-center py-2 px-2">Win%</th>
-                      <th className="text-right py-2 px-2">Profit</th>
-                      <th className="text-center py-2 px-2">Streak</th>
+                    <tr>
+                      <th style={{ width: '40px' }}>#</th>
+                      <th>Agent</th>
+                      <th className="center">W-L</th>
+                      <th className="center">Win%</th>
+                      <th className="right">Profit</th>
+                      <th className="center">Streak</th>
                     </tr>
                   </thead>
                   <tbody>
                     {leaderboard.map((entry, i) => (
-                      <tr 
-                        key={entry.id}
-                        className="border-b border-green-900/50 hover:bg-green-950/30"
-                      >
-                        <td className="py-2 px-2 text-green-600">
+                      <tr key={entry.id}>
+                        <td>
                           {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
                         </td>
-                        <td className="py-2 px-2 text-green-300">{entry.name}</td>
-                        <td className="py-2 px-2 text-center">
-                          <span className="text-green-400">{entry.wins}</span>
-                          <span className="text-green-600">-</span>
-                          <span className="text-red-400">{entry.losses}</span>
+                        <td style={{ fontWeight: 700 }}>
+                          <Link href={`/agent/${entry.id}`} style={{ color: 'inherit' }}>
+                            {entry.name}
+                          </Link>
                         </td>
-                        <td className="py-2 px-2 text-center text-green-400">
+                        <td className="center">
+                          <span className="text-green">{entry.wins}</span>
+                          <span className="text-muted">-</span>
+                          <span className="text-red">{entry.losses}</span>
+                        </td>
+                        <td className="center" style={{ color: 'var(--green)' }}>
                           {entry.win_rate}%
                         </td>
-                        <td className={`py-2 px-2 text-right ${
-                          entry.net_profit >= 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
+                        <td className={`right ${entry.net_profit >= 0 ? 'text-green' : 'text-red'}`}>
                           {entry.net_profit >= 0 ? '+' : ''}{entry.net_profit.toFixed(2)}
                         </td>
-                        <td className="py-2 px-2 text-center">
+                        <td className="center">
                           {entry.current_streak > 0 && (
-                            <span className="text-yellow-400">🔥{entry.current_streak}</span>
-                          )}
-                          {entry.best_streak > entry.current_streak && (
-                            <span className="text-green-600 text-xs ml-1">
-                              (best: {entry.best_streak})
-                            </span>
+                            <span style={{ color: 'var(--yellow)' }}>🔥{entry.current_streak}</span>
                           )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
-      {/* API Reference Footer */}
-      <footer className="border-t border-green-900 mt-8 p-4">
-        <div className="max-w-6xl mx-auto text-center text-sm text-green-600">
-          <p className="mb-2">API Endpoints:</p>
-          <div className="flex flex-wrap justify-center gap-4 text-xs">
+      {/* API Reference */}
+      <div className="panel" style={{ marginTop: '8px' }}>
+        <div className="panel-header">
+          API Reference
+        </div>
+        <div className="panel-body" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
             <code>POST /api/rps/create</code>
             <code>POST /api/rps/challenge/:id</code>
             <code>POST /api/rps/play/:id</code>
@@ -325,7 +373,7 @@ export default function RPSPage() {
             <code>GET /api/rps/game/:id</code>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   )
 }
