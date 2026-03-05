@@ -7,12 +7,20 @@
 
 import { ethers } from 'ethers'
 
-// Contract ABI (only the functions we need)
+// Contract ABI (V2 with notes support)
 const TRADE_LOG_ABI = [
+  // V1 functions (backwards compatible)
   "function logCommit(bytes32 agentId, bytes32 commitmentHash, string action, string direction, uint256 lobs, uint256 timestamp)",
-  "function logReveal(bytes32 agentId, bytes32 commitmentHash, string ticker, uint256 price, uint256 timestamp)",
+  // V2 reveal includes notes
+  "function logReveal(bytes32 agentId, bytes32 commitmentHash, string ticker, uint256 price, string notes, uint256 timestamp)",
+  // V2 generic predictions
+  "function logPredictionCommit(bytes32 agentId, bytes32 commitmentHash, string category, uint256 timestamp)",
+  "function logPredictionReveal(bytes32 agentId, bytes32 commitmentHash, string prediction, string outcome, uint256 timestamp)",
+  // Events
   "event TradeCommitted(bytes32 indexed agentId, bytes32 indexed commitmentHash, string action, string direction, uint256 lobs, uint256 timestamp)",
-  "event TradeRevealed(bytes32 indexed agentId, bytes32 indexed commitmentHash, string ticker, uint256 price, uint256 timestamp)"
+  "event TradeRevealed(bytes32 indexed agentId, bytes32 indexed commitmentHash, string ticker, uint256 price, string notes, uint256 timestamp)",
+  "event PredictionCommitted(bytes32 indexed agentId, bytes32 indexed commitmentHash, string category, uint256 timestamp)",
+  "event PredictionRevealed(bytes32 indexed agentId, bytes32 indexed commitmentHash, string prediction, string outcome, uint256 timestamp)"
 ]
 
 // Configuration from environment
@@ -202,6 +210,7 @@ interface LogRevealParams {
   commitmentHash: string  // 0x... hash (original commitment)
   ticker: string          // Symbol (e.g., NVDA, BTC)
   price: number          // Execution price
+  notes?: string         // Trade thesis/rationale (optional)
   timestamp: Date
 }
 
@@ -210,6 +219,7 @@ interface LogRevealResult {
   agentIdBytes32: string
   commitmentHashBytes32: string
   scaledPrice: string
+  notes: string
 }
 
 /**
@@ -245,17 +255,21 @@ export async function logTradeReveal(params: LogRevealParams): Promise<LogReveal
     const displayId = params.agentWallet 
       ? `wallet=${params.agentWallet.slice(0, 10)}...`
       : `uuid=${params.agentId?.slice(0, 8)}...`
-    console.log(`[Base Logger] Logging reveal: ${displayId} ticker=${params.ticker} price=${params.price}`)
+    const notes = params.notes || ''
+    console.log(`[Base Logger] Logging reveal: ${displayId} ticker=${params.ticker} price=${params.price} notes=${notes.length}chars`)
     
     // Send transaction (don't wait for confirmation)
+    // V2: includes notes parameter
     const tx = await contract.logReveal(
       agentIdBytes32,
       commitmentHashBytes32,
       params.ticker.toUpperCase(),
       scaledPrice,
+      notes,
       timestamp,
       {
-        gasLimit: 100000n,
+        // Gas scales with notes length (~45 gas per byte)
+        gasLimit: 100000n + BigInt(notes.length * 50),
       }
     )
     
@@ -273,6 +287,7 @@ export async function logTradeReveal(params: LogRevealParams): Promise<LogReveal
       agentIdBytes32,
       commitmentHashBytes32,
       scaledPrice: scaledPrice.toString(),
+      notes,
     }
   } catch (error: any) {
     console.error('[Base Logger] Failed to log reveal:', error.message)
@@ -335,7 +350,8 @@ export async function queryAgentTrades(agentId: string, fromBlock?: number): Pro
             commitmentHash: event.args[1],
             ticker: event.args[2],
             price: (Number(event.args[3]) / Number(PRICE_SCALE)).toFixed(8),
-            timestamp: new Date(Number(event.args[4]) * 1000).toISOString(),
+            notes: event.args[4] || '',  // V2: includes notes
+            timestamp: new Date(Number(event.args[5]) * 1000).toISOString(),
           } : null
         }
       }),
