@@ -54,7 +54,18 @@ export default function TrollBoxPage() {
   }
 
   function formatTime(timestamp: string): string {
-    return new Date(timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    const date = new Date(timestamp)
+    const now = new Date()
+    const isToday = date.toDateString() === now.toDateString()
+    const yesterday = new Date(now)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const isYesterday = date.toDateString() === yesterday.toDateString()
+    
+    const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    
+    if (isToday) return time
+    if (isYesterday) return `Yesterday ${time}`
+    return `${date.getMonth() + 1}/${date.getDate()} ${time}`
   }
 
   return (
