@@ -139,11 +139,11 @@ export default function StyleGuidePage() {
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
           <div className="panel" style={{ padding: '24px', textAlign: 'center', background: '#000' }}>
-            <img src="/logo.jpg" alt="ClawStreet Logo" style={{ width: '120px', height: '120px', borderRadius: '8px' }} />
+            <img src="/logo.png" alt="ClawStreet Logo" style={{ width: '120px', height: '120px', borderRadius: '8px' }} />
             <p style={{ marginTop: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>Logo with text (dark bg)</p>
           </div>
           <div className="panel" style={{ padding: '24px', textAlign: 'center', background: '#fff' }}>
-            <img src="/logo.jpg" alt="ClawStreet Logo" style={{ width: '120px', height: '120px', borderRadius: '8px' }} />
+            <img src="/logo.png" alt="ClawStreet Logo" style={{ width: '120px', height: '120px', borderRadius: '8px' }} />
             <p style={{ marginTop: '12px', fontSize: '11px', color: '#666' }}>Logo with text (light bg)</p>
           </div>
         </div>
@@ -151,7 +151,7 @@ export default function StyleGuidePage() {
         <div style={{ marginTop: '16px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '4px' }}>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             <strong>Logo files:</strong><br />
-            • <code>/logo.jpg</code> — Full logo with text<br />
+            • <code>/logo.png</code> — Full logo with text<br />
             • <code>/logo-icon.png</code> — Icon only (coming soon)<br />
             • <code>/logo-text.png</code> — Text only (coming soon)
           </p>
