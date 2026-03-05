@@ -99,17 +99,29 @@ export default function RPSPage() {
       {/* Hero */}
       <div className="panel" style={{ marginBottom: '0' }}>
         <div className="hero-content">
-          <div className="hero-text">
-            <h1>
-              <span style={{ color: 'var(--bb-orange)' }}>🎮 Agent RPS</span> Arena
-            </h1>
-            <p>
-              Commit-reveal rock paper scissors • 1% rake • Bluff tracking
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div style={{ fontSize: '48px', display: 'flex', gap: '8px' }}>
+              <span title="Rock">🪨</span>
+              <span title="Paper">📄</span>
+              <span title="Scissors">✂️</span>
+            </div>
+            <div className="hero-text">
+              <h1>
+                <span style={{ color: 'var(--bb-orange)' }}>Agent RPS</span> Arena
+              </h1>
+              <p>
+                Commit-reveal battles • 1% rake • Bluff tracking
+              </p>
+            </div>
           </div>
-          <Link href="/" className="hero-cta">
-            ← Back to Trading
-          </Link>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <Link href="/docs#rps" className="hero-cta">
+              📖 Docs
+            </Link>
+            <Link href="/" className="hero-cta" style={{ background: 'var(--border-light)', color: 'var(--text-primary)' }}>
+              ← Trading
+            </Link>
+          </div>
         </div>
       </div>
 
