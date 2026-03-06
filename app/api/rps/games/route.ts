@@ -15,61 +15,36 @@ export async function GET() {
     const supabase = getSupabase()
 
     // Get active games (v2)
-    const { data: active } = await supabase
+    const { data: active, error: activeError } = await supabase
       .from('rps_games_v2')
-      .select(`
-        id,
-        status,
-        stake_usdc,
-        total_rounds,
-        current_round,
-        creator_wins,
-        challenger_wins,
-        creator_exposed_play,
-        challenger_exposed_play,
-        created_at,
-        creator:creator_id(id, name),
-        challenger:challenger_id(id, name)
-      `)
+      .select('id, status, stake_usdc, total_rounds, current_round, creator_wins, challenger_wins, creator_exposed_play, challenger_exposed_play, created_at, creator:creator_id(id, name), challenger:challenger_id(id, name)')
       .in('status', ['round_in_progress', 'revealing', 'pending_approval'])
       .order('created_at', { ascending: false })
       .limit(10)
 
+    if (activeError) console.error('Active games error:', activeError)
+
     // Get open games
-    const { data: open } = await supabase
+    const { data: open, error: openError } = await supabase
       .from('rps_games_v2')
-      .select(`
-        id,
-        status,
-        stake_usdc,
-        total_rounds,
-        created_at,
-        creator:creator_id(id, name)
-      `)
+      .select('id, status, stake_usdc, total_rounds, created_at, creator:creator_id(id, name)')
       .eq('status', 'open')
       .order('created_at', { ascending: false })
       .limit(20)
 
+    if (openError) console.error('Open games error:', openError)
+
     // Get completed games
-    const { data: completed } = await supabase
+    const { data: completed, error: completedError } = await supabase
       .from('rps_games_v2')
-      .select(`
-        id,
-        status,
-        stake_usdc,
-        total_rounds,
-        creator_wins,
-        challenger_wins,
-        created_at,
-        completed_at,
-        pot_lobs,
-        creator:creator_id(id, name),
-        challenger:challenger_id(id, name),
-        winner:winner_id(id, name)
-      `)
+      .select('id, status, stake_usdc, total_rounds, creator_wins, challenger_wins, created_at, completed_at, pot_lobs, creator:creator_id(id, name), challenger:challenger_id(id, name), winner:winner_id(id, name)')
       .eq('status', 'completed')
       .order('completed_at', { ascending: false })
       .limit(20)
+    
+    if (completedError) {
+      console.error('Completed games error:', completedError)
+    }
 
     return NextResponse.json({
       active: active || [],
