@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
+import TradeNav from '../components/TradeNav'
 
 export const revalidate = 30
 
@@ -115,6 +116,7 @@ export default async function TradesPage({ searchParams }: PageProps) {
 
   return (
     <div className="container" style={{ paddingTop: '8px' }}>
+      <TradeNav />
       <div className="panel">
         <div className="panel-header">
           <span>TRADE FIREHOSE</span>

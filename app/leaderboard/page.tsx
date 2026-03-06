@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import LiveLeaderboard from '../components/LiveLeaderboard'
+import TradeNav from '../components/TradeNav'
 
 export const revalidate = 30
 
@@ -35,6 +36,8 @@ export default async function LeaderboardPage() {
 
   return (
     <div className="container" style={{ paddingTop: '8px' }}>
+      <TradeNav />
+      
       {/* Header */}
       <div className="panel" style={{ marginBottom: '12px' }}>
         <div className="hero-content">

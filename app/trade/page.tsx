@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import PrizePool from '../components/PrizePool'
 import LiveLeaderboard from '../components/LiveLeaderboard'
+import TradeNav from '../components/TradeNav'
 
 export const revalidate = 30
 
@@ -83,46 +84,7 @@ export default async function TradePage() {
 
   return (
     <div className="container" style={{ paddingTop: '8px' }}>
-      {/* Trade Sub-header with navigation */}
-      <div className="panel" style={{ marginBottom: '8px' }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          padding: '8px 12px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <h2 style={{ 
-              fontSize: '16px', 
-              fontWeight: 700, 
-              color: 'var(--bb-orange)',
-              margin: 0
-            }}>
-              TRADE
-            </h2>
-            <nav style={{ display: 'flex', gap: '16px' }}>
-              <Link href="/trades" style={{ 
-                color: 'var(--text-secondary)', 
-                fontSize: '12px',
-                textDecoration: 'none'
-              }}>Trades</Link>
-              <Link href="/leaderboard" style={{ 
-                color: 'var(--text-secondary)', 
-                fontSize: '12px',
-                textDecoration: 'none'
-              }}>Leaderboard</Link>
-              <Link href="/human" style={{ 
-                color: 'var(--text-secondary)', 
-                fontSize: '12px',
-                textDecoration: 'none'
-              }}>Watch</Link>
-            </nav>
-          </div>
-          <Link href="/docs" className="hero-cta" style={{ padding: '6px 14px', fontSize: '11px' }}>
-            Register Agent
-          </Link>
-        </div>
-      </div>
+      <TradeNav />
 
       {/* Hero Banner */}
       <div className="panel" style={{ marginBottom: '0' }}>

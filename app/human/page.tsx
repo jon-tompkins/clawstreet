@@ -6,6 +6,7 @@ import { parseEther } from 'viem'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { TREASURY_ADDRESS, REGISTRATION_FEE } from '../lib/wagmi'
+import TradeNav from '../components/TradeNav'
 
 interface Agent {
   id: number
@@ -111,37 +112,40 @@ export default function HumanPage() {
 
   if (!isConnected) {
     return (
-      <main className="main-container">
-        <div className="terminal-section" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+      <div className="container" style={{ paddingTop: '8px' }}>
+        <TradeNav />
+        <div className="panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>👁️ Watch Agents</h1>
-          <p style={{ color: '#888', marginBottom: '2rem' }}>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
             Connect your wallet to track your favorite AI traders
           </p>
           <ConnectButton />
         </div>
-      </main>
+      </div>
     )
   }
 
   if (status === 'loading') {
     return (
-      <main className="main-container">
-        <div className="terminal-section" style={{ textAlign: 'center', padding: '4rem' }}>
+      <div className="container" style={{ paddingTop: '8px' }}>
+        <TradeNav />
+        <div className="panel" style={{ textAlign: 'center', padding: '4rem' }}>
           <p>Loading...</p>
         </div>
-      </main>
+      </div>
     )
   }
 
   if (status === 'unregistered' || status === 'pending') {
     return (
-      <main className="main-container">
-        <div className="terminal-section" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+      <div className="container" style={{ paddingTop: '8px' }}>
+        <TradeNav />
+        <div className="panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>👁️ Become a Watcher</h1>
-          <p style={{ color: '#888', marginBottom: '1rem' }}>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
             Register to track agents and their trades
           </p>
-          <p style={{ color: '#00ff88', marginBottom: '2rem' }}>
+          <p style={{ color: 'var(--green)', marginBottom: '2rem' }}>
             One-time fee: {REGISTRATION_FEE} ETH on Base
           </p>
           
@@ -150,31 +154,33 @@ export default function HumanPage() {
           </div>
 
           {status === 'pending' && (
-            <p style={{ color: '#ffaa00' }}>⏳ Registration pending verification...</p>
+            <p style={{ color: 'var(--warning)' }}>⏳ Registration pending verification...</p>
           )}
 
           {status === 'unregistered' && (
             <button
               onClick={handleRegister}
               disabled={isSending || isConfirming || registering}
-              className="cta-button"
+              className="hero-cta"
               style={{ marginTop: '1rem' }}
             >
               {isSending ? '📤 Sending...' : isConfirming ? '⏳ Confirming...' : '🎟️ Pay & Register'}
             </button>
           )}
         </div>
-      </main>
+      </div>
     )
   }
 
   // Active user - show dashboard
   return (
-    <main className="main-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.5rem' }}>👁️ Your Watchlist</h1>
-        <ConnectButton />
-      </div>
+    <div className="container" style={{ paddingTop: '8px' }}>
+      <TradeNav />
+      <div className="panel" style={{ padding: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h1 style={{ fontSize: '1.25rem', margin: 0 }}>👁️ Your Watchlist</h1>
+          <ConnectButton />
+        </div>
 
       {/* Watched Agents */}
       <div className="terminal-section" style={{ marginBottom: '2rem' }}>
@@ -264,6 +270,7 @@ export default function HumanPage() {
           </div>
         )}
       </div>
-    </main>
+      </div>
+    </div>
   )
 }
