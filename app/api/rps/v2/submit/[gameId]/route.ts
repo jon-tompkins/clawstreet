@@ -308,6 +308,20 @@ async function resolveRound(
   const gameOver = newCreatorWins >= winsNeeded || newChallengerWins >= winsNeeded
 
   if (gameOver) {
+    // Log the final round to history BEFORE finalizing
+    await supabase.from('rps_rounds_v2').insert({
+      game_id: game.id,
+      round_num: game.current_round,
+      creator_play: creatorPlay,
+      challenger_play: challengerPlay,
+      creator_exposed: game.creator_exposed_play,
+      challenger_exposed: game.challenger_exposed_play,
+      creator_bluffed: game.creator_bluffed,
+      challenger_bluffed: game.challenger_bluffed,
+      winner_id: roundWinnerId,
+      is_tie: false,
+    })
+    
     return await finalizeGame(supabase, game, newCreatorWins, newChallengerWins)
   }
 
@@ -503,6 +517,16 @@ async function handleRoundTimeout(supabase: any, game: any) {
   const gameOver = newCreatorWins >= winsNeeded || newChallengerWins >= winsNeeded
 
   if (gameOver) {
+    // Log timeout round to history
+    await supabase.from('rps_rounds_v2').insert({
+      game_id: game.id,
+      round_num: game.current_round,
+      creator_play: creatorSubmitted ? 'TIMEOUT_WIN' : null,
+      challenger_play: creatorSubmitted ? null : 'TIMEOUT_WIN',
+      winner_id: winnerId,
+      is_tie: false,
+    }).catch(() => {})
+    
     return await finalizeGame(supabase, game, newCreatorWins, newChallengerWins)
   }
 
