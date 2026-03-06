@@ -6,10 +6,9 @@ import Link from 'next/link'
 // Orange RPS Icons as SVG components
 const RockIcon = ({ size = 24 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <circle cx="12" cy="12" r="10" fill="#f97316" />
-    <path d="M8 14c0-2 1.5-4 4-4s4 2 4 4" stroke="#000" strokeWidth="2" strokeLinecap="round" />
-    <circle cx="9" cy="10" r="1.5" fill="#000" />
-    <circle cx="15" cy="10" r="1.5" fill="#000" />
+    <path d="M4 16c0-2 1-4 3-5s4-1.5 5-1.5c1.5 0 3.5.5 5 1.5s3 3 3 5c0 2.5-2 4-4 4.5s-4 .5-5 .5-3.5 0-5-.5S4 18.5 4 16z" fill="#f97316" />
+    <path d="M6 14.5c.5-1 1.5-1.5 2.5-1.5M10 12c1-.5 2-.5 3 0M15 13c1 .5 1.8 1 2.2 1.8" stroke="#000" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+    <ellipse cx="12" cy="15" rx="6" ry="4" fill="none" stroke="#000" strokeWidth="0.5" opacity="0.2" />
   </svg>
 )
 
@@ -99,6 +98,7 @@ interface LeaderboardEntry {
   games_played: number
   wins: number
   losses: number
+  draws: number
   win_rate: number
   net_profit: number
   total_wagered: number
@@ -106,6 +106,7 @@ interface LeaderboardEntry {
 
 interface Stats {
   total_games: number
+  total_draws: number
   total_wagered: number
   biggest_win: number
   active_players: number
@@ -515,7 +516,7 @@ export default function RPSPage() {
                       <tr>
                         <th style={{ textAlign: 'left', padding: '8px' }}>Players</th>
                         <th style={{ textAlign: 'center' }}>Score</th>
-                        <th style={{ textAlign: 'right', padding: '8px' }}>Won</th>
+                        <th style={{ textAlign: 'right', padding: '8px' }}>Result</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -545,8 +546,8 @@ export default function RPSPage() {
                           <td style={{ textAlign: 'center', fontWeight: 700 }}>
                             {game.creator_wins}-{game.challenger_wins}
                           </td>
-                          <td style={{ textAlign: 'right', padding: '8px', color: 'var(--green)' }}>
-                            ${((game.stake_usdc * 2) * 0.99).toFixed(2)}
+                          <td style={{ textAlign: 'right', padding: '8px', color: game.winner ? 'var(--green)' : 'var(--text-muted)' }}>
+                            {game.winner ? `$${((game.stake_usdc * 2) * 0.99).toFixed(2)}` : 'DRAW'}
                           </td>
                         </tr>
                       ))}
@@ -621,6 +622,12 @@ export default function RPSPage() {
                             <span style={{ color: 'var(--green)' }}>{entry.wins}</span>
                             <span style={{ color: 'var(--text-muted)' }}>-</span>
                             <span style={{ color: 'var(--red)' }}>{entry.losses}</span>
+                            {entry.draws > 0 && (
+                              <>
+                                <span style={{ color: 'var(--text-muted)' }}>-</span>
+                                <span style={{ color: 'var(--text-muted)' }}>{entry.draws}</span>
+                              </>
+                            )}
                           </td>
                           <td style={{ 
                             textAlign: 'right', 
@@ -651,7 +658,7 @@ export default function RPSPage() {
             <div className="panel-body">
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(6, 1fr)', 
+                gridTemplateColumns: 'repeat(4, 1fr)', 
                 gap: '16px',
                 textAlign: 'center'
               }}>
@@ -659,7 +666,9 @@ export default function RPSPage() {
                   <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--bb-orange)' }}>
                     {stats?.total_games || 0}
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Total Games</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Total Games {stats?.total_draws ? `(${stats.total_draws} draws)` : ''}
+                  </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--green)' }}>
@@ -678,18 +687,6 @@ export default function RPSPage() {
                     {stats?.active_players || 0}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Active Players</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {stats?.games_today || 0}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Games Today</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    ${stats?.avg_stake?.toFixed(2) || '0.00'}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Avg Stake</div>
                 </div>
               </div>
             </div>
@@ -767,12 +764,20 @@ export default function RPSPage() {
               <span>
                 Final: <strong>{selectedGame.creator_wins}-{selectedGame.challenger_wins}</strong>
               </span>
-              <span style={{ color: 'var(--bb-orange)', fontWeight: 700 }}>
-                Winner: {selectedGame.winner?.name}
-              </span>
-              <span style={{ color: 'var(--green)' }}>
-                +${((selectedGame.stake_usdc * 2) * 0.99).toFixed(2)}
-              </span>
+              {selectedGame.winner ? (
+                <>
+                  <span style={{ color: 'var(--bb-orange)', fontWeight: 700 }}>
+                    Winner: {selectedGame.winner.name}
+                  </span>
+                  <span style={{ color: 'var(--green)' }}>
+                    +${((selectedGame.stake_usdc * 2) * 0.99).toFixed(2)}
+                  </span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>
+                  DRAW — Stakes returned
+                </span>
+              )}
             </div>
 
             <table style={{ width: '100%' }}>

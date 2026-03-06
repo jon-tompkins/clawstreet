@@ -20,6 +20,13 @@ export async function GET() {
       .select('*', { count: 'exact', head: true })
       .eq('status', 'completed')
 
+    // Count draws (completed games with no winner)
+    const { count: totalDraws } = await supabase
+      .from('rps_games_v2')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'completed')
+      .is('winner_id', null)
+
     // Total wagered (sum of stakes * 2 for completed games)
     const { data: wagerData } = await supabase
       .from('rps_games_v2')
@@ -67,6 +74,7 @@ export async function GET() {
 
     return NextResponse.json({
       total_games: totalGames || 0,
+      total_draws: totalDraws || 0,
       total_wagered: totalWagered,
       biggest_win: biggestWin,
       active_players: activePlayers.size,
