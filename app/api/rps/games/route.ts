@@ -92,7 +92,8 @@ export async function GET() {
     return NextResponse.json({
       active,
       open,
-      completed
+      completed,
+      _version: 'v3-inline-client'
     })
   } catch (error: any) {
     console.error('Error fetching RPS games:', error)
