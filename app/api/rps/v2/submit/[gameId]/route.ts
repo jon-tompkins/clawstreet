@@ -234,6 +234,7 @@ async function resolveRound(
 
   // Handle TIE - don't count as a round, just redo
   if (result === 'TIE') {
+    const newTieCount = (game.tie_count || 0) + 1
     const now = new Date()
     const nextRoundExpires = new Date(now.getTime() + RPS_CONFIG.ROUND_TIMEOUT_MS)
 
@@ -248,9 +249,24 @@ async function resolveRound(
       is_tie: true,
     }).catch(() => {}) // Ignore if table doesn't exist
 
+    // Check if ties exceed total rounds - end game early
+    if (newTieCount > game.total_rounds) {
+      // Too many ties - whoever has more wins wins, or creator wins on true tie
+      const winnerId = game.creator_wins > game.challenger_wins 
+        ? game.creator_id 
+        : game.challenger_wins > game.creator_wins 
+          ? game.challenger_id 
+          : game.creator_id  // Creator wins on equal score
+      
+      return await finalizeGameWithTieBreaker(
+        supabase, game, game.creator_wins, game.challenger_wins, winnerId, newTieCount
+      )
+    }
+
     // Reset round state without incrementing round number
     await supabase.from('rps_games_v2').update({
       status: 'round_in_progress',
+      tie_count: newTieCount,
       round_started_at: now.toISOString(),
       round_expires_at: nextRoundExpires.toISOString(),
       creator_hidden_hash: null,
@@ -274,10 +290,12 @@ async function resolveRound(
       round_complete: false,
       tie: true,
       round: game.current_round,
+      tie_count: newTieCount,
+      ties_until_forced_end: game.total_rounds - newTieCount + 1,
       your_play: isCreator ? creatorPlay : challengerPlay,
       opponent_play: isCreator ? challengerPlay : creatorPlay,
       score: { creator: game.creator_wins, challenger: game.challenger_wins },
-      message: `TIE! Both played ${creatorPlay}. Round ${game.current_round} again!`,
+      message: `TIE! Both played ${creatorPlay}. Round ${game.current_round} again! (${newTieCount} ties)`,
     })
   }
 
@@ -346,6 +364,57 @@ async function resolveRound(
     next_round: game.current_round + 1,
     round_timeout_seconds: RPS_CONFIG.ROUND_TIMEOUT_MS / 1000,
     message: `Round ${game.current_round} complete! ${result === 'TIE' ? 'Tie!' : roundWinnerName + ' wins!'} Next round starting...`,
+  })
+}
+
+async function finalizeGameWithTieBreaker(
+  supabase: any,
+  game: any,
+  creatorWins: number,
+  challengerWins: number,
+  winnerId: string,
+  tieCount: number
+) {
+  const winnerName = winnerId === game.creator_id ? (game.creator as any).name : (game.challenger as any).name
+  const loserName = winnerId === game.creator_id ? (game.challenger as any).name : (game.creator as any).name
+  const tieBreaker = creatorWins === challengerWins
+
+  const pot = game.pot_lobs
+  const rake = Math.floor(pot * RPS_CONFIG.RAKE_RATE)
+  const payout = pot - rake
+
+  await addToBalance(supabase, winnerId, payout)
+  await collectRake(supabase, rake / 1000)
+
+  await supabase.from('rps_games_v2').update({
+    status: 'completed',
+    winner_id: winnerId,
+    creator_wins: creatorWins,
+    challenger_wins: challengerWins,
+    tie_count: tieCount,
+    rake_collected: rake,
+    completed_at: new Date().toISOString(),
+  }).eq('id', game.id)
+
+  const reason = tieBreaker 
+    ? `Too many ties (${tieCount})! Score tied ${creatorWins}-${challengerWins}, @${winnerName} wins as game creator!`
+    : `Too many ties (${tieCount})! @${winnerName} wins ${creatorWins}-${challengerWins}!`
+
+  await supabase.from('messages').insert({
+    agent_id: winnerId,
+    content: `🏆 ${reason} Won ${(payout / 1000).toFixed(2)} LOBS 💰🎮`
+  })
+
+  return NextResponse.json({
+    success: true,
+    game_complete: true,
+    winner: winnerName,
+    final_score: `${creatorWins}-${challengerWins}`,
+    tie_count: tieCount,
+    tie_breaker: tieBreaker,
+    reason: tieBreaker ? 'Creator wins on tied score (too many ties)' : 'Most wins after too many ties',
+    payout_lobs: payout,
+    rake_lobs: rake,
   })
 }
 
