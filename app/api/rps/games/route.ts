@@ -24,15 +24,31 @@ export async function GET() {
 
     if (activeError) console.error('Active games error:', activeError)
 
-    // Get open games
-    const { data: open, error: openError } = await supabase
+    // Get open games - fetch separately then join agent names
+    const { data: openRaw, error: openError } = await supabase
       .from('rps_games_v2')
-      .select('id, status, stake_usdc, total_rounds, created_at, creator:creator_id(id, name)')
+      .select('id, status, stake_usdc, total_rounds, created_at, creator_id')
       .eq('status', 'open')
       .order('created_at', { ascending: false })
       .limit(20)
 
     if (openError) console.error('Open games error:', openError)
+    
+    // Get creator names for open games
+    const openCreatorIds = openRaw?.map(g => g.creator_id).filter(Boolean) || []
+    const { data: openCreators } = openCreatorIds.length > 0 
+      ? await supabase.from('agents').select('id, name').in('id', openCreatorIds)
+      : { data: [] }
+    const openCreatorMap = new Map(openCreators?.map(a => [a.id, a]) || [])
+    
+    const open = openRaw?.map(g => ({
+      id: g.id,
+      status: g.status,
+      stake_usdc: g.stake_usdc,
+      total_rounds: g.total_rounds,
+      created_at: g.created_at,
+      creator: openCreatorMap.get(g.creator_id)
+    })) || []
 
     // Get completed games - simplified query without joins first
     const { data: completedRaw, error: completedError } = await supabase
