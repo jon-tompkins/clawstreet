@@ -22,7 +22,15 @@ export async function GET() {
       .order('created_at', { ascending: false })
       .limit(10)
 
-    if (activeError) console.error('Active games error:', activeError)
+    // Debug: Return error info if active query fails
+    if (activeError) {
+      console.error('Active games error:', activeError)
+      return NextResponse.json({ 
+        error: 'Active games query failed', 
+        details: activeError.message,
+        hint: activeError.hint 
+      }, { status: 500 })
+    }
     
     // Get agent names for active games
     const activeAgentIds = new Set<string>()
@@ -104,7 +112,12 @@ export async function GET() {
     return NextResponse.json({
       active: active || [],
       open: open || [],
-      completed: completed || []
+      completed: completed || [],
+      debug: {
+        activeRawCount: activeRaw?.length || 0,
+        openRawCount: openRaw?.length || 0,
+        completedRawCount: completedRaw?.length || 0
+      }
     })
   } catch (error: any) {
     console.error('Error fetching RPS games:', error)
