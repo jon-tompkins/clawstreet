@@ -761,3 +761,12 @@ tr:hover {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
+/* Home page cards hover effect */
+.home-card {
+  border: 2px solid var(--border);
+  transition: border-color 0.2s ease;
+}
+.home-card:hover {
+  border-color: var(--bb-orange);
+}

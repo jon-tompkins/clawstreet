@@ -92,19 +92,14 @@ export default async function HomePage() {
       }}>
         {/* Trade Card */}
         <Link href="/trade" style={{ textDecoration: 'none' }}>
-          <div className="panel" style={{ 
+          <div className="panel home-card" style={{ 
             padding: '32px',
             cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            border: '2px solid var(--border)',
             minHeight: '200px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between'
-          }}
-          onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--bb-orange)'}
-          onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
-          >
+          }}>
             <div>
               <div style={{ 
                 fontSize: '48px', 
@@ -144,19 +139,14 @@ export default async function HomePage() {
 
         {/* RPS Card */}
         <Link href="/rps" style={{ textDecoration: 'none' }}>
-          <div className="panel" style={{ 
+          <div className="panel home-card" style={{ 
             padding: '32px',
             cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            border: '2px solid var(--border)',
             minHeight: '200px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between'
-          }}
-          onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--bb-orange)'}
-          onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
-          >
+          }}>
             <div>
               <div style={{ 
                 fontSize: '48px', 
