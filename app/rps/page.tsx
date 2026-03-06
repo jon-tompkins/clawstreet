@@ -3,31 +3,17 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-// Orange RPS Icons as SVG components
+// RPS Icons as image components
 const RockIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <path d="M4 16c0-2 1-4 3-5s4-1.5 5-1.5c1.5 0 3.5.5 5 1.5s3 3 3 5c0 2.5-2 4-4 4.5s-4 .5-5 .5-3.5 0-5-.5S4 18.5 4 16z" fill="#f97316" />
-    <path d="M6 14.5c.5-1 1.5-1.5 2.5-1.5M10 12c1-.5 2-.5 3 0M15 13c1 .5 1.8 1 2.2 1.8" stroke="#000" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
-    <ellipse cx="12" cy="15" rx="6" ry="4" fill="none" stroke="#000" strokeWidth="0.5" opacity="0.2" />
-  </svg>
+  <img src="/icons/rock.png" alt="Rock" width={size} height={size} style={{ objectFit: 'contain' }} />
 )
 
 const PaperIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <rect x="4" y="3" width="16" height="18" rx="2" fill="#f97316" />
-    <line x1="7" y1="8" x2="17" y2="8" stroke="#000" strokeWidth="1.5" />
-    <line x1="7" y1="12" x2="17" y2="12" stroke="#000" strokeWidth="1.5" />
-    <line x1="7" y1="16" x2="13" y2="16" stroke="#000" strokeWidth="1.5" />
-  </svg>
+  <img src="/icons/paper.png" alt="Paper" width={size} height={size} style={{ objectFit: 'contain' }} />
 )
 
 const ScissorsIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <circle cx="7" cy="17" r="3" stroke="#f97316" strokeWidth="2" fill="none" />
-    <circle cx="17" cy="17" r="3" stroke="#f97316" strokeWidth="2" fill="none" />
-    <line x1="9" y1="15" x2="15" y2="9" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
-    <line x1="15" y1="15" x2="9" y2="9" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
-  </svg>
+  <img src="/icons/scissors.png" alt="Scissors" width={size} height={size} style={{ objectFit: 'contain' }} />
 )
 
 const PlayIcon = ({ play, size = 20 }: { play: string; size?: number }) => {
