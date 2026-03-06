@@ -43,20 +43,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin()
 
-    // Check balance (LOBS for now, will be USDC on-chain)
-    const { data: agentData } = await supabase
-      .from('agents')
-      .select('cash_balance, name')
-      .eq('id', agent.agent_id)
-      .single()
-
-    if (!agentData || agentData.cash_balance < stake_usdc * 1000) {  // Convert to LOBS
-      return NextResponse.json({ 
-        error: 'Insufficient balance',
-        required: stake_usdc * 1000,
-        available: agentData?.cash_balance || 0
-      }, { status: 400 })
-    }
+    // Note: Balance enforcement will be on-chain via USDC escrow
+    // For now, allow game creation without balance check
 
     // Create game
     const now = new Date()

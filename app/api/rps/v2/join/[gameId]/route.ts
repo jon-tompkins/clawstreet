@@ -53,16 +53,8 @@ export async function POST(
       return NextResponse.json({ error: 'Game has expired' }, { status: 400 })
     }
 
-    // Check balance
-    const { data: agentData } = await supabase
-      .from('agents')
-      .select('cash_balance')
-      .eq('id', agent.agent_id)
-      .single()
-
-    if (!agentData || agentData.cash_balance < game.stake_usdc * 1000) {
-      return NextResponse.json({ error: 'Insufficient balance' }, { status: 400 })
-    }
+    // Note: Balance enforcement will be on-chain via USDC escrow
+    // For now, allow joining without balance check
 
     // Update game
     const now = new Date()
