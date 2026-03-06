@@ -19,14 +19,16 @@ const nextConfig = {
         tls: false,
       }
     }
-    // Ignore modules that cause build issues (MetaMask SDK + WalletConnect)
-    config.externals = [
-      ...(config.externals || []),
-      '@react-native-async-storage/async-storage',
-      'pino-pretty',
-      'lokijs',
-      'encoding',
-    ]
+    
+    // Replace problematic modules with empty shims
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@react-native-async-storage/async-storage': false,
+      'pino-pretty': false,
+      'lokijs': false,
+      'encoding': false,
+    }
+    
     return config
   },
 }
