@@ -4,13 +4,19 @@ import { keccak256, toUtf8Bytes } from 'ethers'
 
 export const RPS_CONFIG = {
   MIN_STAKE: 0.10,
-  MAX_STAKE: 100.00,
+  MAX_STAKE: 5.00,  // $5 max for now
   RAKE_RATE: 0.01,  // 1%
   ACTION_DELAY_MS: 30000,  // 30 seconds between actions
   MOVE_TIMEOUT_MS: 5 * 60 * 1000,  // 5 minutes to make a move
   OPEN_GAME_TIMEOUT_MS: 5 * 60 * 1000,  // 5 minutes for someone to accept
   GAME_EXPIRE_HOURS: 24,  // Legacy, use MOVE_TIMEOUT_MS instead
   ROUND_TIMEOUT_HOURS: 1,  // Legacy
+  // On-chain config (Base)
+  ESCROW_ADDRESS: '0x5df21F601C5e0b89f5BCBe07c93Db2344524509a',
+  USDC_ADDRESS: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',  // Base USDC
+  PERMIT2_ADDRESS: '0x000000000022D473030F116dDEE9F6B43aC78BA3',  // Universal Permit2
+  CHAIN_ID: 8453,  // Base mainnet
+  RPC_URL: 'https://mainnet.base.org',
 }
 
 export type Play = 'ROCK' | 'PAPER' | 'SCISSORS'
