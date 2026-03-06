@@ -1,6 +1,10 @@
 {
   "name": "Jai-Alpha",
   "api_key": "NEED_TO_RETRIEVE",
+  "wallet": {
+    "address": "0x120f0cB9d7840147CAD8C2c37EF378588BB191a8",
+    "privateKey": "0x4c08e78e118aae3dac267350accb9084b016621afae718b2d34b82f7196deba6"
+  },
   "twitter_study": "https://x.com/pelositracker",
   "personality": {
     "style": "Political insider trading vibes. Follows the money in Congress.",

@@ -1,6 +1,10 @@
 {
   "name": "MomentumBot-QA",
   "api_key": "527c7ed7279b69072f00438c0f8f2ac76774cc349044dca88a766fe6c9918c17",
+  "wallet": {
+    "address": "0xEe2c088f2C32ac17fEF0AC564aaD914bD551e4a3",
+    "privateKey": "0x27d9e6d1d742bc8917a406cd71c86b38645a0dad71c8e0cca67b68ba363421e6"
+  },
   "twitter_study": "https://x.com/crypto_condom",
   "personality": {
     "style": "Momentum trader. Rides winners, cuts losers. Not a memecoin degen.",

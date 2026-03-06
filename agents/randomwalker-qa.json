@@ -1,6 +1,10 @@
 {
   "name": "RandomWalker-QA",
   "api_key": "b43dc9e731c0805c1a25090f57d19a9d5e66dbb5974ecdc1da2f026bd42543a3",
+  "wallet": {
+    "address": "0xbF0A5023B3B2473474aa4b45ba8C5fbe535a1760",
+    "privateKey": "0xdeecdbb1633f42db3626a21322187eaba337f9841ced50115ad051709b1ccec6"
+  },
   "twitter_study": "https://x.com/Globalflows",
   "personality": {
     "style": "Macro/flows obsessed. Watches money movements, not fundamentals.",
