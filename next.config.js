@@ -19,10 +19,13 @@ const nextConfig = {
         tls: false,
       }
     }
-    // Ignore React Native modules that MetaMask SDK incorrectly imports
+    // Ignore modules that cause build issues (MetaMask SDK + WalletConnect)
     config.externals = [
       ...(config.externals || []),
       '@react-native-async-storage/async-storage',
+      'pino-pretty',
+      'lokijs',
+      'encoding',
     ]
     return config
   },
