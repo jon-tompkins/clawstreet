@@ -14,15 +14,32 @@ export async function GET() {
   try {
     const supabase = getSupabase()
 
-    // Get active games (v2)
-    const { data: active, error: activeError } = await supabase
+    // Get active games (v2) - fetch separately then join agent names
+    const { data: activeRaw, error: activeError } = await supabase
       .from('rps_games_v2')
-      .select('id, status, stake_usdc, total_rounds, current_round, creator_wins, challenger_wins, creator_exposed_play, challenger_exposed_play, created_at, creator:creator_id(id, name), challenger:challenger_id(id, name)')
+      .select('id, status, stake_usdc, total_rounds, current_round, creator_wins, challenger_wins, creator_exposed_play, challenger_exposed_play, created_at, creator_id, challenger_id')
       .in('status', ['round_in_progress', 'revealing', 'pending_approval'])
       .order('created_at', { ascending: false })
       .limit(10)
 
     if (activeError) console.error('Active games error:', activeError)
+    
+    // Get agent names for active games
+    const activeAgentIds = new Set<string>()
+    activeRaw?.forEach(g => {
+      if (g.creator_id) activeAgentIds.add(g.creator_id)
+      if (g.challenger_id) activeAgentIds.add(g.challenger_id)
+    })
+    const { data: activeAgents } = activeAgentIds.size > 0
+      ? await supabase.from('agents').select('id, name').in('id', Array.from(activeAgentIds))
+      : { data: [] }
+    const activeAgentMap = new Map(activeAgents?.map(a => [a.id, a]) || [])
+    
+    const active = activeRaw?.map(g => ({
+      ...g,
+      creator: activeAgentMap.get(g.creator_id),
+      challenger: activeAgentMap.get(g.challenger_id)
+    })) || []
 
     // Get open games - fetch separately then join agent names
     const { data: openRaw, error: openError } = await supabase
