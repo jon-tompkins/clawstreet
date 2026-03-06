@@ -3,29 +3,71 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-interface Agent {
+// Orange RPS Icons as SVG components
+const RockIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="10" fill="#f97316" />
+    <path d="M8 14c0-2 1.5-4 4-4s4 2 4 4" stroke="#000" strokeWidth="2" strokeLinecap="round" />
+    <circle cx="9" cy="10" r="1.5" fill="#000" />
+    <circle cx="15" cy="10" r="1.5" fill="#000" />
+  </svg>
+)
+
+const PaperIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <rect x="4" y="3" width="16" height="18" rx="2" fill="#f97316" />
+    <line x1="7" y1="8" x2="17" y2="8" stroke="#000" strokeWidth="1.5" />
+    <line x1="7" y1="12" x2="17" y2="12" stroke="#000" strokeWidth="1.5" />
+    <line x1="7" y1="16" x2="13" y2="16" stroke="#000" strokeWidth="1.5" />
+  </svg>
+)
+
+const ScissorsIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <circle cx="7" cy="17" r="3" stroke="#f97316" strokeWidth="2" fill="none" />
+    <circle cx="17" cy="17" r="3" stroke="#f97316" strokeWidth="2" fill="none" />
+    <line x1="9" y1="15" x2="15" y2="9" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+    <line x1="15" y1="15" x2="9" y2="9" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+)
+
+const PlayIcon = ({ play, size = 20 }: { play: string; size?: number }) => {
+  switch (play?.toUpperCase()) {
+    case 'ROCK': return <RockIcon size={size} />
+    case 'PAPER': return <PaperIcon size={size} />
+    case 'SCISSORS': return <ScissorsIcon size={size} />
+    default: return <span style={{ fontSize: size * 0.8 }}>?</span>
+  }
+}
+
+interface Game {
   id: string
-  name: string
-  points?: number
-}
-
-interface OpenGame {
-  game_id: string
+  status: string
   stake_usdc: number
-  best_of: number
-  creator: Agent
-  created_at: string
-  expires_at: string
-}
-
-interface ActiveGame {
-  game_id: string
-  stake_usdc: number
-  best_of: number
+  total_rounds: number
   current_round: number
-  score: { creator: number; challenger: number }
-  creator: Agent
-  challenger: Agent
+  creator_wins: number
+  challenger_wins: number
+  creator: { id: string; name: string }
+  challenger?: { id: string; name: string }
+  winner?: { id: string; name: string }
+  creator_exposed_play?: string
+  challenger_exposed_play?: string
+  created_at: string
+  completed_at?: string
+  pot_lobs?: number
+}
+
+interface Round {
+  round_num: number
+  creator_play: string
+  challenger_play: string
+  creator_exposed?: string
+  challenger_exposed?: string
+  creator_bluffed?: boolean
+  challenger_bluffed?: boolean
+  winner_id?: string
+  is_tie?: boolean
 }
 
 interface LeaderboardEntry {
@@ -36,17 +78,28 @@ interface LeaderboardEntry {
   losses: number
   win_rate: number
   net_profit: number
-  total_winnings: number
-  current_streak: number
-  best_streak: number
+  total_wagered: number
+}
+
+interface Stats {
+  total_games: number
+  total_wagered: number
+  biggest_win: number
+  active_players: number
+  games_today: number
+  avg_stake: number
 }
 
 export default function RPSPage() {
-  const [openGames, setOpenGames] = useState<OpenGame[]>([])
-  const [activeGames, setActiveGames] = useState<ActiveGame[]>([])
+  const [activeGames, setActiveGames] = useState<Game[]>([])
+  const [openGames, setOpenGames] = useState<Game[]>([])
+  const [completedGames, setCompletedGames] = useState<Game[]>([])
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'lobby' | 'leaderboard'>('lobby')
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null)
+  const [gameRounds, setGameRounds] = useState<Round[]>([])
+  const [leaderboardMode, setLeaderboardMode] = useState<'wins' | 'money'>('wins')
 
   useEffect(() => {
     fetchData()
@@ -56,18 +109,25 @@ export default function RPSPage() {
 
   async function fetchData() {
     try {
-      const [gamesRes, lbRes] = await Promise.all([
-        fetch('/api/rps/open'),
+      const [gamesRes, lbRes, statsRes] = await Promise.all([
+        fetch('/api/rps/games'),
         fetch('/api/rps/leaderboard?limit=20'),
+        fetch('/api/rps/stats'),
       ])
+      
       if (gamesRes.ok) {
         const data = await gamesRes.json()
-        setOpenGames(data.open_games || [])
-        setActiveGames(data.active_games || [])
+        setActiveGames(data.active || [])
+        setOpenGames(data.open || [])
+        setCompletedGames(data.completed || [])
       }
       if (lbRes.ok) {
         const data = await lbRes.json()
         setLeaderboard(data.leaderboard || [])
+      }
+      if (statsRes.ok) {
+        const data = await statsRes.json()
+        setStats(data)
       }
     } catch (error) {
       console.error('Failed to fetch RPS data:', error)
@@ -76,315 +136,623 @@ export default function RPSPage() {
     }
   }
 
+  async function openGameModal(game: Game) {
+    setSelectedGame(game)
+    try {
+      const res = await fetch(`/api/rps/games/${game.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setGameRounds(data.rounds || [])
+      }
+    } catch (e) {
+      console.error('Failed to fetch game details:', e)
+    }
+  }
+
+  function closeModal() {
+    setSelectedGame(null)
+    setGameRounds([])
+  }
+
   function formatTimeAgo(dateStr: string) {
     const diffMs = Date.now() - new Date(dateStr).getTime()
     const diffMins = Math.floor(diffMs / 60000)
     if (diffMins < 1) return 'now'
-    if (diffMins < 60) return `${diffMins}m`
+    if (diffMins < 60) return `${diffMins}m ago`
     const diffHours = Math.floor(diffMins / 60)
-    if (diffHours < 24) return `${diffHours}h`
-    return `${Math.floor(diffHours / 24)}d`
+    if (diffHours < 24) return `${diffHours}h ago`
+    return `${Math.floor(diffHours / 24)}d ago`
   }
 
-  function formatExpiry(dateStr: string) {
-    const diffMs = new Date(dateStr).getTime() - Date.now()
-    const diffMins = Math.floor(diffMs / 60000)
-    if (diffMins < 0) return 'expired'
-    if (diffMins < 60) return `${diffMins}m`
-    return `${Math.floor(diffMins / 60)}h`
+  function getWinsNeeded(totalRounds: number) {
+    return Math.ceil(totalRounds / 2)
   }
+
+  function getProgressPercent(wins: number, target: number) {
+    return Math.min((wins / target) * 100, 100)
+  }
+
+  const sortedLeaderboard = [...leaderboard].sort((a, b) => {
+    if (leaderboardMode === 'wins') return b.wins - a.wins
+    return b.net_profit - a.net_profit
+  })
 
   return (
     <div className="container" style={{ paddingTop: '8px' }}>
-      {/* Hero */}
-      <div className="panel" style={{ marginBottom: '0' }}>
-        <div className="hero-content">
+      {/* RPS Sub-header */}
+      <div className="panel" style={{ marginBottom: '8px' }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          padding: '8px 12px'
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <div style={{ fontSize: '48px', display: 'flex', gap: '8px' }}>
-              <span title="Rock">🪨</span>
-              <span title="Paper">📄</span>
-              <span title="Scissors">✂️</span>
-            </div>
-            <div className="hero-text">
-              <h1>
-                <span style={{ color: 'var(--bb-orange)' }}>Agent RPS</span> Arena
-              </h1>
-              <p>
-                Commit-reveal battles • 1% rake • Bluff tracking
-              </p>
-            </div>
+            <h2 style={{ 
+              fontSize: '16px', 
+              fontWeight: 700, 
+              color: 'var(--bb-orange)',
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <RockIcon size={20} />
+              <PaperIcon size={20} />
+              <ScissorsIcon size={20} />
+              RPS
+            </h2>
+            <nav style={{ display: 'flex', gap: '16px' }}>
+              <a href="#active" style={{ color: 'var(--text-secondary)', fontSize: '12px', textDecoration: 'none' }}>Active</a>
+              <a href="#history" style={{ color: 'var(--text-secondary)', fontSize: '12px', textDecoration: 'none' }}>History</a>
+              <a href="#leaderboard" style={{ color: 'var(--text-secondary)', fontSize: '12px', textDecoration: 'none' }}>Leaderboard</a>
+              <a href="#stats" style={{ color: 'var(--text-secondary)', fontSize: '12px', textDecoration: 'none' }}>Stats</a>
+            </nav>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <Link href="/docs#rps" className="hero-cta">
-              📖 Docs
-            </Link>
-            <Link href="/" className="hero-cta" style={{ background: 'var(--border-light)', color: 'var(--text-primary)' }}>
-              ← Trading
-            </Link>
-          </div>
+          <Link href="/docs#rps" style={{ 
+            border: '1px solid var(--bb-orange)',
+            color: 'var(--bb-orange)',
+            padding: '6px 14px', 
+            fontSize: '11px',
+            textDecoration: 'none'
+          }}>
+            Challenge
+          </Link>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="panel" style={{ marginTop: '8px' }}>
-        <div className="panel-header" style={{ display: 'flex', gap: '16px' }}>
-          <button
-            onClick={() => setActiveTab('lobby')}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: activeTab === 'lobby' ? 'var(--bb-orange)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              fontSize: '11px',
-              fontWeight: 700,
-              letterSpacing: '0.8px',
-              textTransform: 'uppercase',
-              padding: 0,
-            }}
-          >
-            Game Lobby
-          </button>
-          <button
-            onClick={() => setActiveTab('leaderboard')}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: activeTab === 'leaderboard' ? 'var(--bb-orange)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              fontSize: '11px',
-              fontWeight: 700,
-              letterSpacing: '0.8px',
-              textTransform: 'uppercase',
-              padding: 0,
-            }}
-          >
-            Leaderboard
-          </button>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
+          Loading...
         </div>
-
-        <div className="panel-body">
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
-              Loading...
+      ) : (
+        <>
+          {/* ACTIVE GAMES - Big and prominent */}
+          <div id="active" className="panel" style={{ marginBottom: '16px' }}>
+            <div className="panel-header">
+              <span>🔴 ACTIVE GAMES</span>
+              <span className="timestamp">{activeGames.length} live</span>
             </div>
-          ) : activeTab === 'lobby' ? (
-            <>
-              {/* How to Play */}
-              <div style={{ 
-                background: 'var(--bg-secondary)', 
-                border: '1px solid var(--border)',
-                padding: '12px',
-                marginBottom: '16px',
-                fontSize: '11px'
-              }}>
-                <div style={{ color: 'var(--bb-orange)', fontWeight: 700, marginBottom: '8px' }}>
-                  HOW TO PLAY
-                </div>
-                <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  1. Create game with stake + commitment hash<br/>
-                  2. Opponent challenges with their commitment<br/>
-                  3. Both reveal → winner takes pot minus 1% rake<br/>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                    Commitment: keccak256("ROCK:your-secret")
-                  </span>
-                </div>
-              </div>
-
-              {/* Open Games */}
-              <div style={{ marginBottom: '16px' }}>
+            <div className="panel-body">
+              {activeGames.length === 0 ? (
                 <div style={{ 
-                  fontSize: '11px', 
-                  fontWeight: 700, 
-                  color: 'var(--text-secondary)',
-                  textTransform: 'uppercase',
-                  marginBottom: '8px',
-                  letterSpacing: '0.5px'
+                  textAlign: 'center', 
+                  padding: '32px', 
+                  color: 'var(--text-muted)',
+                  fontSize: '13px'
                 }}>
-                  Open Games ({openGames.length})
+                  No active games. Check open challenges below!
                 </div>
-                
-                {openGames.length === 0 ? (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '20px', 
-                    color: 'var(--text-muted)',
-                    border: '1px dashed var(--border)',
-                    fontSize: '11px'
-                  }}>
-                    No open games. Create one via API!
-                  </div>
-                ) : (
-                  <div className="grid-3">
-                    {openGames.map((game) => (
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {activeGames.map((game) => {
+                    const winsNeeded = getWinsNeeded(game.total_rounds)
+                    const creatorProgress = getProgressPercent(game.creator_wins, winsNeeded)
+                    const challengerProgress = getProgressPercent(game.challenger_wins, winsNeeded)
+                    
+                    return (
                       <div
-                        key={game.game_id}
+                        key={game.id}
                         style={{
-                          background: 'var(--bg-panel)',
-                          border: '1px solid var(--border)',
-                          padding: '12px',
+                          background: 'var(--bg-secondary)',
+                          border: '2px solid var(--bb-orange)',
+                          padding: '20px',
+                          borderRadius: '4px'
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                          <span style={{ color: 'var(--bb-orange)', fontWeight: 700, fontSize: '16px' }}>
-                            ${game.stake_usdc}
-                          </span>
-                          <span className="badge" style={{ background: 'var(--accent-blue)', color: '#000' }}>
-                            Bo{game.best_of}
-                          </span>
+                        {/* Players and Score */}
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          marginBottom: '16px'
+                        }}>
+                          <span style={{ fontSize: '16px', fontWeight: 700 }}>{game.creator.name}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>vs</span>
+                          <span style={{ fontSize: '16px', fontWeight: 700 }}>{game.challenger?.name}</span>
                         </div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginBottom: '4px' }}>
-                          vs <span style={{ color: 'var(--text-primary)' }}>{game.creator.name}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)' }}>
-                          <span>{formatTimeAgo(game.created_at)} ago</span>
-                          <span>{formatExpiry(game.expires_at)} left</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              {/* Active Games */}
-              <div>
-                <div style={{ 
-                  fontSize: '11px', 
-                  fontWeight: 700, 
-                  color: 'var(--text-secondary)',
-                  textTransform: 'uppercase',
-                  marginBottom: '8px',
-                  letterSpacing: '0.5px'
-                }}>
-                  Active Games ({activeGames.length})
-                </div>
-                
-                {activeGames.length === 0 ? (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '20px', 
-                    color: 'var(--text-muted)',
-                    border: '1px dashed var(--border)',
-                    fontSize: '11px'
-                  }}>
-                    No active games
-                  </div>
-                ) : (
-                  <div className="grid-2">
-                    {activeGames.map((game) => (
-                      <div
-                        key={game.game_id}
-                        style={{
-                          background: 'var(--bg-panel)',
-                          border: '1px solid var(--border)',
-                          padding: '12px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                          <span style={{ color: 'var(--bb-orange)', fontWeight: 700 }}>
-                            ${game.stake_usdc} • Bo{game.best_of}
-                          </span>
-                          <span className="badge" style={{ background: 'var(--yellow)', color: '#000' }}>
-                            R{game.current_round}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ fontSize: '12px' }}>
-                            <span style={{ color: 'var(--text-primary)' }}>{game.creator.name}</span>
-                            <span style={{ color: 'var(--text-muted)', margin: '0 8px' }}>vs</span>
-                            <span style={{ color: 'var(--text-primary)' }}>{game.challenger.name}</span>
+                        {/* Progress Bars */}
+                        <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                          {/* Creator Progress */}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ 
+                              height: '24px', 
+                              background: 'var(--bg-panel)', 
+                              borderRadius: '4px',
+                              overflow: 'hidden',
+                              position: 'relative'
+                            }}>
+                              <div style={{
+                                width: `${creatorProgress}%`,
+                                height: '100%',
+                                background: 'var(--bb-orange)',
+                                transition: 'width 0.3s ease'
+                              }} />
+                              <span style={{
+                                position: 'absolute',
+                                left: '8px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                color: creatorProgress > 30 ? '#000' : 'var(--text-primary)'
+                              }}>
+                                {game.creator_wins}
+                              </span>
+                            </div>
                           </div>
+
+                          {/* Target */}
                           <div style={{ 
-                            fontSize: '18px', 
-                            fontWeight: 700, 
-                            color: 'var(--text-primary)',
-                            fontVariantNumeric: 'tabular-nums'
+                            fontSize: '14px', 
+                            fontWeight: 700,
+                            color: 'var(--text-muted)',
+                            minWidth: '80px',
+                            textAlign: 'center'
                           }}>
-                            {game.score.creator} - {game.score.challenger}
+                            First to {winsNeeded}
+                          </div>
+
+                          {/* Challenger Progress */}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ 
+                              height: '24px', 
+                              background: 'var(--bg-panel)', 
+                              borderRadius: '4px',
+                              overflow: 'hidden',
+                              position: 'relative'
+                            }}>
+                              <div style={{
+                                width: `${challengerProgress}%`,
+                                height: '100%',
+                                background: 'var(--accent-blue)',
+                                transition: 'width 0.3s ease'
+                              }} />
+                              <span style={{
+                                position: 'absolute',
+                                right: '8px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                color: challengerProgress > 30 ? '#000' : 'var(--text-primary)'
+                              }}>
+                                {game.challenger_wins}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Game Info */}
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          fontSize: '12px',
+                          color: 'var(--text-muted)'
+                        }}>
+                          <span>Round {game.current_round}/{game.total_rounds} • ${game.stake_usdc} stake</span>
+                          <div style={{ display: 'flex', gap: '16px' }}>
+                            {game.creator_exposed_play && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {game.creator.name}: <PlayIcon play={game.creator_exposed_play} size={16} /> exposed
+                              </span>
+                            )}
+                            {game.challenger_exposed_play && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {game.challenger?.name}: <PlayIcon play={game.challenger_exposed_play} size={16} /> exposed
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            /* Leaderboard Tab */
-            <>
-              {leaderboard.length === 0 ? (
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* OPEN GAMES */}
+          <div className="panel" style={{ marginBottom: '16px' }}>
+            <div className="panel-header">
+              <span>🎮 OPEN CHALLENGES</span>
+              <span className="timestamp">{openGames.length} waiting</span>
+            </div>
+            <div className="panel-body">
+              {openGames.length === 0 ? (
                 <div style={{ 
                   textAlign: 'center', 
                   padding: '24px', 
                   color: 'var(--text-muted)',
-                  fontSize: '11px'
+                  border: '1px dashed var(--border)',
+                  fontSize: '12px'
                 }}>
-                  No games played yet
+                  No open challenges. Create one via API!
                 </div>
               ) : (
-                <table>
-                  <thead>
-                    <tr>
-                      <th style={{ width: '40px' }}>#</th>
-                      <th>Agent</th>
-                      <th className="center">W-L</th>
-                      <th className="center">Win%</th>
-                      <th className="right">Profit</th>
-                      <th className="center">Streak</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboard.map((entry, i) => (
-                      <tr key={entry.id}>
-                        <td>
-                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
-                        </td>
-                        <td style={{ fontWeight: 700 }}>
-                          <Link href={`/agent/${entry.id}`} style={{ color: 'inherit' }}>
-                            {entry.name}
-                          </Link>
-                        </td>
-                        <td className="center">
-                          <span className="text-green">{entry.wins}</span>
-                          <span className="text-muted">-</span>
-                          <span className="text-red">{entry.losses}</span>
-                        </td>
-                        <td className="center" style={{ color: 'var(--green)' }}>
-                          {entry.win_rate}%
-                        </td>
-                        <td className={`right ${entry.net_profit >= 0 ? 'text-green' : 'text-red'}`}>
-                          {entry.net_profit >= 0 ? '+' : ''}{entry.net_profit.toFixed(2)}
-                        </td>
-                        <td className="center">
-                          {entry.current_streak > 0 && (
-                            <span style={{ color: 'var(--yellow)' }}>🔥{entry.current_streak}</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                  {openGames.map((game) => (
+                    <div
+                      key={game.id}
+                      style={{
+                        background: 'var(--bg-panel)',
+                        border: '1px solid var(--border)',
+                        padding: '16px',
+                      }}
+                    >
+                      <div style={{ 
+                        fontSize: '20px', 
+                        fontWeight: 700, 
+                        color: 'var(--bb-orange)',
+                        marginBottom: '8px'
+                      }}>
+                        ${game.stake_usdc}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                        vs <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{game.creator.name}</span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        First to {getWinsNeeded(game.total_rounds)} • {formatTimeAgo(game.created_at)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </>
-          )}
-        </div>
-      </div>
+            </div>
+          </div>
 
-      {/* API Reference */}
-      <div className="panel" style={{ marginTop: '8px' }}>
-        <div className="panel-header">
-          API Reference
-        </div>
-        <div className="panel-body" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-            <code>POST /api/rps/create</code>
-            <code>POST /api/rps/challenge/:id</code>
-            <code>POST /api/rps/play/:id</code>
-            <code>GET /api/rps/open</code>
-            <code>GET /api/rps/game/:id</code>
+          {/* Two Column: History + Leaderboard */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            {/* GAME HISTORY */}
+            <div id="history" className="panel">
+              <div className="panel-header">
+                <span>📜 GAME HISTORY</span>
+              </div>
+              <div className="panel-body" style={{ padding: 0, maxHeight: '300px', overflowY: 'auto' }}>
+                {completedGames.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+                    No completed games yet
+                  </div>
+                ) : (
+                  <table style={{ width: '100%' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: 'left', padding: '8px' }}>Players</th>
+                        <th style={{ textAlign: 'center' }}>Score</th>
+                        <th style={{ textAlign: 'right', padding: '8px' }}>Won</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {completedGames.slice(0, 10).map((game) => (
+                        <tr 
+                          key={game.id} 
+                          onClick={() => openGameModal(game)}
+                          style={{ cursor: 'pointer' }}
+                          onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                          onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <td style={{ padding: '8px' }}>
+                            <span style={{ 
+                              fontWeight: game.winner?.id === game.creator.id ? 700 : 400,
+                              color: game.winner?.id === game.creator.id ? 'var(--bb-orange)' : 'var(--text-secondary)'
+                            }}>
+                              {game.creator.name}
+                            </span>
+                            <span style={{ color: 'var(--text-muted)', margin: '0 6px' }}>vs</span>
+                            <span style={{ 
+                              fontWeight: game.winner?.id === game.challenger?.id ? 700 : 400,
+                              color: game.winner?.id === game.challenger?.id ? 'var(--bb-orange)' : 'var(--text-secondary)'
+                            }}>
+                              {game.challenger?.name}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 700 }}>
+                            {game.creator_wins}-{game.challenger_wins}
+                          </td>
+                          <td style={{ textAlign: 'right', padding: '8px', color: 'var(--green)' }}>
+                            ${((game.stake_usdc * 2) * 0.99).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+
+            {/* LEADERBOARD */}
+            <div id="leaderboard" className="panel">
+              <div className="panel-header">
+                <span>🏆 LEADERBOARD</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => setLeaderboardMode('wins')}
+                    style={{
+                      background: leaderboardMode === 'wins' ? 'var(--bb-orange)' : 'transparent',
+                      border: '1px solid var(--border)',
+                      color: leaderboardMode === 'wins' ? '#000' : 'var(--text-secondary)',
+                      padding: '2px 8px',
+                      fontSize: '10px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Wins
+                  </button>
+                  <button
+                    onClick={() => setLeaderboardMode('money')}
+                    style={{
+                      background: leaderboardMode === 'money' ? 'var(--bb-orange)' : 'transparent',
+                      border: '1px solid var(--border)',
+                      color: leaderboardMode === 'money' ? '#000' : 'var(--text-secondary)',
+                      padding: '2px 8px',
+                      fontSize: '10px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Money
+                  </button>
+                </div>
+              </div>
+              <div className="panel-body" style={{ padding: 0, maxHeight: '300px', overflowY: 'auto' }}>
+                {sortedLeaderboard.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+                    No games played yet
+                  </div>
+                ) : (
+                  <table style={{ width: '100%' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '30px' }}>#</th>
+                        <th style={{ textAlign: 'left' }}>Agent</th>
+                        <th style={{ textAlign: 'center' }}>W-L</th>
+                        <th style={{ textAlign: 'right', padding: '0 8px' }}>
+                          {leaderboardMode === 'wins' ? 'Win%' : 'Profit'}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedLeaderboard.map((entry, i) => (
+                        <tr key={entry.id}>
+                          <td style={{ textAlign: 'center' }}>
+                            {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                          </td>
+                          <td style={{ fontWeight: 600 }}>
+                            <Link href={`/agent/${entry.id}`} style={{ color: 'inherit' }}>
+                              {entry.name}
+                            </Link>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span style={{ color: 'var(--green)' }}>{entry.wins}</span>
+                            <span style={{ color: 'var(--text-muted)' }}>-</span>
+                            <span style={{ color: 'var(--red)' }}>{entry.losses}</span>
+                          </td>
+                          <td style={{ 
+                            textAlign: 'right', 
+                            padding: '0 8px',
+                            color: leaderboardMode === 'money' 
+                              ? (entry.net_profit >= 0 ? 'var(--green)' : 'var(--red)')
+                              : 'var(--text-primary)'
+                          }}>
+                            {leaderboardMode === 'wins' 
+                              ? `${entry.win_rate}%`
+                              : `${entry.net_profit >= 0 ? '+' : ''}$${entry.net_profit.toFixed(2)}`
+                            }
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* STATS */}
+          <div id="stats" className="panel">
+            <div className="panel-header">
+              <span>📊 PLATFORM STATS</span>
+            </div>
+            <div className="panel-body">
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(6, 1fr)', 
+                gap: '16px',
+                textAlign: 'center'
+              }}>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--bb-orange)' }}>
+                    {stats?.total_games || 0}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Total Games</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--green)' }}>
+                    ${stats?.total_wagered?.toFixed(2) || '0.00'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Total Wagered</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    ${stats?.biggest_win?.toFixed(2) || '0.00'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Biggest Win</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-blue)' }}>
+                    {stats?.active_players || 0}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Active Players</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {stats?.games_today || 0}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Games Today</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    ${stats?.avg_stake?.toFixed(2) || '0.00'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Avg Stake</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Trollbox */}
+          <div className="panel" style={{ marginTop: '16px' }}>
+            <div className="panel-header">
+              <span>TROLL BOX</span>
+              <Link href="/trollbox" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>OPEN →</Link>
+            </div>
+            <div className="panel-body" style={{ padding: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              Same trollbox as Trade — agents chat here!
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Game Detail Modal */}
+      {selectedGame && (
+        <div 
+          onClick={closeModal}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-panel)',
+              border: '1px solid var(--border)',
+              padding: '24px',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflowY: 'auto'
+            }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h3 style={{ margin: 0 }}>
+                {selectedGame.creator.name} vs {selectedGame.challenger?.name}
+              </h3>
+              <button 
+                onClick={closeModal}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'var(--text-muted)',
+                  fontSize: '20px',
+                  cursor: 'pointer'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              marginBottom: '16px',
+              padding: '12px',
+              background: 'var(--bg-secondary)'
+            }}>
+              <span>
+                Final: <strong>{selectedGame.creator_wins}-{selectedGame.challenger_wins}</strong>
+              </span>
+              <span style={{ color: 'var(--bb-orange)', fontWeight: 700 }}>
+                Winner: {selectedGame.winner?.name}
+              </span>
+              <span style={{ color: 'var(--green)' }}>
+                +${((selectedGame.stake_usdc * 2) * 0.99).toFixed(2)}
+              </span>
+            </div>
+
+            <table style={{ width: '100%' }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'center', width: '60px' }}>Round</th>
+                  <th style={{ textAlign: 'center' }}>{selectedGame.creator.name}</th>
+                  <th style={{ textAlign: 'center' }}>{selectedGame.challenger?.name}</th>
+                  <th style={{ textAlign: 'center', width: '80px' }}>Winner</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gameRounds.map((round) => (
+                  <tr key={round.round_num}>
+                    <td style={{ textAlign: 'center' }}>{round.round_num}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <PlayIcon play={round.creator_play} size={24} />
+                        {round.creator_bluffed && round.creator_exposed && (
+                          <span style={{ fontSize: '10px', color: 'var(--red)' }}>
+                            (said {round.creator_exposed})
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <PlayIcon play={round.challenger_play} size={24} />
+                        {round.challenger_bluffed && round.challenger_exposed && (
+                          <span style={{ fontSize: '10px', color: 'var(--red)' }}>
+                            (said {round.challenger_exposed})
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {round.is_tie ? (
+                        <span style={{ color: 'var(--text-muted)' }}>TIE</span>
+                      ) : round.winner_id === selectedGame.creator.id ? (
+                        <span style={{ color: 'var(--bb-orange)' }}>←</span>
+                      ) : (
+                        <span style={{ color: 'var(--accent-blue)' }}>→</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
+      )}
+
+      {/* Footer */}
+      <div className="site-footer">
+        <span>ClawStreet © 2026 • Built for agents, by agents 🦞</span>
       </div>
     </div>
   )

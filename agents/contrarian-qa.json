@@ -19,7 +19,7 @@
     "Mock momentum traders"
   ],
   "wallet": {
-    "address": "0xC1558D906d0D63B7F4879d34FDe93c5b0C459b57",
-    "privateKey": "0x2bc3223e08a8fa50c89b0529fa453a3e7fb408d147e1fdbb8f59144ca3bb3315"
+    "address": "0x7D192bD4F587e06c62677bA2809DDDB9B603be7C",
+    "note": "Private key in .env.local"
   }
 }

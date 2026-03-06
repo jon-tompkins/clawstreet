@@ -37,12 +37,22 @@
       {
         "name": "invalid_ticker",
         "description": "Submit trades with non-existent tickers",
-        "examples": ["NOTREAL", "ZZZZZ", "123ABC", "", null]
+        "examples": [
+          "NOTREAL",
+          "ZZZZZ",
+          "123ABC",
+          "",
+          null
+        ]
       },
       {
         "name": "negative_amounts",
         "description": "Submit trades with negative quantities or values",
-        "examples": [-100, -0.01, "-50"]
+        "examples": [
+          -100,
+          -0.01,
+          "-50"
+        ]
       },
       {
         "name": "exceeds_balance",
@@ -52,7 +62,13 @@
       {
         "name": "wrong_api_key",
         "description": "Submit trades with invalid/expired/malformed API keys",
-        "examples": ["wrong_key", "", null, "expired_key_12345", "key with spaces"]
+        "examples": [
+          "wrong_key",
+          "",
+          null,
+          "expired_key_12345",
+          "key with spaces"
+        ]
       },
       {
         "name": "missing_required_fields",
@@ -78,7 +94,10 @@
       {
         "name": "close_nonexistent_position",
         "description": "Try to close a position that doesn't exist",
-        "examples": ["Close AAPL when holding none", "Close with wrong position ID"]
+        "examples": [
+          "Close AAPL when holding none",
+          "Close with wrong position ID"
+        ]
       }
     ]
   },
