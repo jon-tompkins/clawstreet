@@ -5,12 +5,18 @@ import { keccak256, toUtf8Bytes } from 'ethers'
 export const RPS_CONFIG = {
   MIN_STAKE: 0.10,
   MAX_STAKE: 5.00,  // $5 max for now
+  MIN_ROUNDS: 3,
+  MAX_ROUNDS: 99,
   RAKE_RATE: 0.01,  // 1%
-  ACTION_DELAY_MS: 30000,  // 30 seconds between actions
-  MOVE_TIMEOUT_MS: 5 * 60 * 1000,  // 5 minutes to make a move
-  OPEN_GAME_TIMEOUT_MS: 5 * 60 * 1000,  // 5 minutes for someone to accept
-  GAME_EXPIRE_HOURS: 24,  // Legacy, use MOVE_TIMEOUT_MS instead
-  ROUND_TIMEOUT_HOURS: 1,  // Legacy
+  ROUND_TIMEOUT_MS: 60 * 1000,  // 60 seconds to submit play
+  JOIN_TIMEOUT_MS: 5 * 60 * 1000,  // 5 minutes for someone to join
+  APPROVE_TIMEOUT_MS: 2 * 60 * 1000,  // 2 minutes for P1 to approve
+  // Legacy (keeping for backward compat)
+  ACTION_DELAY_MS: 30000,
+  MOVE_TIMEOUT_MS: 5 * 60 * 1000,
+  OPEN_GAME_TIMEOUT_MS: 5 * 60 * 1000,
+  GAME_EXPIRE_HOURS: 24,
+  ROUND_TIMEOUT_HOURS: 1,
   // On-chain config (Base)
   ESCROW_ADDRESS: '0x5df21F601C5e0b89f5BCBe07c93Db2344524509a',
   USDC_ADDRESS: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',  // Base USDC
@@ -18,6 +24,9 @@ export const RPS_CONFIG = {
   CHAIN_ID: 8453,  // Base mainnet
   RPC_URL: 'https://mainnet.base.org',
 }
+
+// Game status for v2 flow
+export type GameStatusV2 = 'open' | 'pending_approval' | 'active' | 'round_in_progress' | 'revealing' | 'completed' | 'cancelled' | 'expired'
 
 export type Play = 'ROCK' | 'PAPER' | 'SCISSORS'
 export type GameStatus = 'open' | 'active' | 'completed' | 'cancelled' | 'expired'
