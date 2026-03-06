@@ -53,9 +53,32 @@ interface Game {
   winner?: { id: string; name: string }
   creator_exposed_play?: string
   challenger_exposed_play?: string
+  creator_submitted_at?: string
+  challenger_submitted_at?: string
+  round_expires_at?: string
   created_at: string
   completed_at?: string
   pot_lobs?: number
+}
+
+// Countdown timer component
+function CountdownTimer({ expiresAt }: { expiresAt: string }) {
+  const [timeLeft, setTimeLeft] = useState<number>(0)
+  
+  useEffect(() => {
+    const update = () => {
+      const diff = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000))
+      setTimeLeft(diff)
+    }
+    update()
+    const interval = setInterval(update, 1000)
+    return () => clearInterval(interval)
+  }, [expiresAt])
+  
+  if (timeLeft <= 0) return <span style={{ color: 'var(--bb-red)' }}>⏰ TIME!</span>
+  
+  const color = timeLeft <= 10 ? 'var(--bb-red)' : timeLeft <= 30 ? 'var(--bb-orange)' : 'var(--text-muted)'
+  return <span style={{ color, fontWeight: 700 }}>⏱️ {timeLeft}s</span>
 }
 
 interface Round {
@@ -103,7 +126,8 @@ export default function RPSPage() {
 
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, 10000)
+    // Fast polling when games are active
+    const interval = setInterval(fetchData, 3000)
     return () => clearInterval(interval)
   }, [])
 
@@ -344,24 +368,75 @@ export default function RPSPage() {
                           </div>
                         </div>
 
-                        {/* Game Info */}
+                        {/* Exposed Plays - Center Stage */}
+                        {(game.creator_exposed_play || game.challenger_exposed_play || game.status === 'round_in_progress') && (
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-around',
+                            alignItems: 'center',
+                            padding: '16px 0',
+                            marginBottom: '12px',
+                            background: 'var(--bg-panel)',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ textAlign: 'center' }}>
+                              {game.creator_submitted_at ? (
+                                <>
+                                  <PlayIcon play={game.creator_exposed_play || ''} size={40} />
+                                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                    {game.creator_exposed_play}
+                                  </div>
+                                </>
+                              ) : (
+                                <div style={{ fontSize: '32px', opacity: 0.3 }}>❓</div>
+                              )}
+                            </div>
+                            <div style={{ 
+                              fontSize: '20px', 
+                              fontWeight: 700,
+                              color: 'var(--bb-orange)'
+                            }}>
+                              VS
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              {game.challenger_submitted_at ? (
+                                <>
+                                  <PlayIcon play={game.challenger_exposed_play || ''} size={40} />
+                                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                    {game.challenger_exposed_play}
+                                  </div>
+                                </>
+                              ) : (
+                                <div style={{ fontSize: '32px', opacity: 0.3 }}>❓</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Game Info with Timer */}
                         <div style={{ 
                           display: 'flex', 
                           justifyContent: 'space-between',
+                          alignItems: 'center',
                           fontSize: '12px',
                           color: 'var(--text-muted)'
                         }}>
                           <span>Round {game.current_round}/{game.total_rounds} • ${game.stake_usdc} stake</span>
-                          <div style={{ display: 'flex', gap: '16px' }}>
-                            {game.creator_exposed_play && (
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {game.creator.name}: <PlayIcon play={game.creator_exposed_play} size={16} /> exposed
-                              </span>
-                            )}
-                            {game.challenger_exposed_play && (
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {game.challenger?.name}: <PlayIcon play={game.challenger_exposed_play} size={16} /> exposed
-                              </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ 
+                              padding: '2px 8px',
+                              background: game.status === 'revealing' ? 'var(--bb-orange)' : 'var(--bg-panel)',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              textTransform: 'uppercase',
+                              color: game.status === 'revealing' ? '#000' : 'var(--text-muted)'
+                            }}>
+                              {game.status === 'round_in_progress' ? 'Submit Plays' : 
+                               game.status === 'revealing' ? 'Revealing!' : 
+                               game.status === 'pending_approval' ? 'Awaiting Approval' : game.status}
+                            </span>
+                            {game.round_expires_at && (
+                              <CountdownTimer expiresAt={game.round_expires_at} />
                             )}
                           </div>
                         </div>

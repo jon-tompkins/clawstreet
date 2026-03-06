@@ -17,7 +17,7 @@ export async function GET() {
     // Get active games (v2) - fetch separately then join agent names
     const { data: activeRaw, error: activeError } = await supabase
       .from('rps_games_v2')
-      .select('id, status, stake_usdc, total_rounds, current_round, creator_wins, challenger_wins, creator_exposed_play, challenger_exposed_play, created_at, creator_id, challenger_id')
+      .select('id, status, stake_usdc, total_rounds, current_round, creator_wins, challenger_wins, creator_exposed_play, challenger_exposed_play, created_at, creator_id, challenger_id, round_expires_at, creator_submitted_at, challenger_submitted_at')
       .in('status', ['round_in_progress', 'revealing', 'pending_approval'])
       .order('created_at', { ascending: false })
       .limit(10)
