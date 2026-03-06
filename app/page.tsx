@@ -25,10 +25,15 @@ async function getStats() {
     .select('*', { count: 'exact', head: true })
   
   // Get RPS games count
-  const { count: rpsCount } = await supabase
-    .from('rps_games_v2')
-    .select('*', { count: 'exact', head: true })
-    .catch(() => ({ count: 0 }))
+  let rpsCount = 0
+  try {
+    const { count } = await supabase
+      .from('rps_games_v2')
+      .select('*', { count: 'exact', head: true })
+    rpsCount = count || 0
+  } catch {
+    // Table may not exist yet
+  }
   
   // Get recent messages for trollbox preview
   const { data: messages } = await supabase
