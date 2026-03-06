@@ -6,18 +6,10 @@ export const dynamic = 'force-dynamic'
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 }
 
-/**
- * GET /api/rps/leaderboard
- * Get RPS leaderboard (public)
- * 
- * Query params:
- *   sort?: 'wins' | 'win_rate' | 'profit' | 'streak' (default: wins)
- *   limit?: number (default: 20, max: 100)
- */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -26,111 +18,92 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabase()
 
-    // Use the view we created
-    let query = supabase
-      .from('rps_leaderboard')
-      .select('*')
-      .gt('games_played', 0)
-      .limit(limit)
-
-    // Apply sorting
-    switch (sort) {
-      case 'win_rate':
-        query = query.order('win_rate', { ascending: false })
-        break
-      case 'profit':
-        query = query.order('net_profit', { ascending: false })
-        break
-      case 'streak':
-        query = query.order('best_streak', { ascending: false })
-        break
-      case 'wins':
-      default:
-        query = query.order('wins', { ascending: false })
-    }
-
-    const { data: leaderboard, error } = await query
-
-    if (error) {
-      // If view doesn't exist, fall back to manual query
-      console.log('Leaderboard view error, using fallback:', error.message)
-      
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from('rps_stats')
-        .select(`
-          agent_id,
-          games_played,
-          games_won,
-          games_lost,
-          total_won,
-          total_lost,
-          current_streak,
-          best_streak,
-          bluffs_attempted,
-          bluffs_successful,
-          rock_count,
-          paper_count,
-          scissors_count,
-          agents!inner(name)
-        `)
-        .gt('games_played', 0)
-        .order('games_won', { ascending: false })
-        .limit(limit)
-
-      if (fallbackError) throw fallbackError
-
-      const formatted = fallbackData?.map((s: any) => ({
-        id: s.agent_id,
-        name: s.agents.name,
-        games_played: s.games_played,
-        wins: s.games_won,
-        losses: s.games_lost,
-        win_rate: s.games_played > 0 ? Math.round((s.games_won / s.games_played) * 100 * 10) / 10 : 0,
-        net_profit: (s.total_won || 0) - (s.total_lost || 0),
-        total_winnings: s.total_won || 0,
-        current_streak: s.current_streak,
-        best_streak: s.best_streak,
-        bluff_success_rate: s.bluffs_attempted > 0 
-          ? Math.round((s.bluffs_successful / s.bluffs_attempted) * 100 * 10) / 10 
-          : 0,
-        rock_plays: s.rock_count,
-        paper_plays: s.paper_count,
-        scissors_plays: s.scissors_count,
-      }))
-
-      return NextResponse.json({
-        leaderboard: formatted || [],
-        sort,
-        total: formatted?.length || 0,
-      })
-    }
-
-    // Get some aggregate stats
-    const { data: stats } = await supabase
-      .from('rps_games')
-      .select('id, stake_usdc, rake_collected', { count: 'exact' })
+    // Get all completed games from v2
+    const { data: games, error } = await supabase
+      .from('rps_games_v2')
+      .select('creator_id, challenger_id, winner_id, stake_usdc')
       .eq('status', 'completed')
 
-    const totalGames = stats?.length || 0
-    const totalVolume = stats?.reduce((sum: number, g: any) => sum + (g.stake_usdc * 2), 0) || 0
-    const totalRake = stats?.reduce((sum: number, g: any) => sum + (g.rake_collected || 0), 0) || 0
+    if (error) throw error
+
+    // Calculate stats per agent
+    const statsMap = new Map<string, {
+      wins: number
+      losses: number
+      total_won: number
+      total_lost: number
+    }>()
+
+    games?.forEach(g => {
+      const stake = g.stake_usdc || 0
+      const winnings = stake * 2 * 0.99 // After rake
+
+      // Creator stats
+      if (g.creator_id) {
+        const s = statsMap.get(g.creator_id) || { wins: 0, losses: 0, total_won: 0, total_lost: 0 }
+        if (g.winner_id === g.creator_id) {
+          s.wins++
+          s.total_won += winnings
+        } else {
+          s.losses++
+          s.total_lost += stake
+        }
+        statsMap.set(g.creator_id, s)
+      }
+
+      // Challenger stats
+      if (g.challenger_id) {
+        const s = statsMap.get(g.challenger_id) || { wins: 0, losses: 0, total_won: 0, total_lost: 0 }
+        if (g.winner_id === g.challenger_id) {
+          s.wins++
+          s.total_won += winnings
+        } else {
+          s.losses++
+          s.total_lost += stake
+        }
+        statsMap.set(g.challenger_id, s)
+      }
+    })
+
+    // Get agent names
+    const agentIds = Array.from(statsMap.keys())
+    const { data: agents } = await supabase
+      .from('agents')
+      .select('id, name')
+      .in('id', agentIds)
+
+    const agentMap = new Map(agents?.map(a => [a.id, a.name]) || [])
+
+    // Build leaderboard
+    let leaderboard = Array.from(statsMap.entries()).map(([id, s]) => ({
+      id,
+      name: agentMap.get(id) || 'Unknown',
+      games_played: s.wins + s.losses,
+      wins: s.wins,
+      losses: s.losses,
+      win_rate: s.wins + s.losses > 0 ? Math.round((s.wins / (s.wins + s.losses)) * 100) : 0,
+      net_profit: s.total_won - s.total_lost,
+      total_winnings: s.total_won,
+      total_wagered: s.total_lost + s.total_won
+    }))
+
+    // Sort
+    if (sort === 'money' || sort === 'profit') {
+      leaderboard.sort((a, b) => b.net_profit - a.net_profit)
+    } else {
+      leaderboard.sort((a, b) => b.wins - a.wins || b.win_rate - a.win_rate)
+    }
+
+    leaderboard = leaderboard.slice(0, limit)
 
     return NextResponse.json({
-      leaderboard: leaderboard || [],
+      leaderboard,
       sort,
-      total: leaderboard?.length || 0,
-      stats: {
-        total_games_completed: totalGames,
-        total_volume_usdc: totalVolume,
-        total_rake_collected: totalRake,
-      },
+      total: leaderboard.length
     })
 
   } catch (error: any) {
     console.error('RPS leaderboard error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch leaderboard', details: error.message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

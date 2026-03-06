@@ -770,3 +770,110 @@ tr:hover {
 .home-card:hover {
   border-color: var(--bb-orange);
 }
+
+/* ========== Mobile Responsive ========== */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 12px;
+  }
+
+  /* Homepage hero */
+  .container > div:first-child h1 {
+    font-size: 28px !important;
+  }
+  
+  /* Homepage cards grid */
+  .container > div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Panel padding */
+  .panel {
+    padding: 12px;
+  }
+  
+  .panel-header {
+    padding: 8px;
+    font-size: 10px;
+  }
+  
+  .panel-body {
+    padding: 8px;
+  }
+
+  /* Header nav */
+  .header-bar {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+  
+  .header-nav {
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  /* Trade nav */
+  .panel > div[style*="justify-content: space-between"] {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .panel > div nav {
+    gap: 8px !important;
+  }
+
+  .panel > div nav a {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+  }
+
+  /* Hero CTA */
+  .hero-cta {
+    padding: 8px 14px;
+    font-size: 11px;
+  }
+
+  /* Dashboard grids */
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Tables */
+  table {
+    font-size: 11px;
+  }
+  
+  th, td {
+    padding: 6px 4px;
+  }
+
+  /* RPS Active games */
+  .panel > div[style*="flex-direction: column"] > div[style*="border: 2px solid"] {
+    padding: 12px;
+  }
+
+  /* Stats grid */
+  .panel-body > div[style*="grid-template-columns: repeat(6"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 12px;
+  }
+
+  /* Footer */
+  .site-footer {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-nav {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  
+  .panel-body > div[style*="grid-template-columns: repeat(3"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
