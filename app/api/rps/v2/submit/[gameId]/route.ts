@@ -232,7 +232,56 @@ async function resolveRound(
     roundWinnerName = (game.challenger as any).name
   }
 
-  // Update scores
+  // Handle TIE - don't count as a round, just redo
+  if (result === 'TIE') {
+    const now = new Date()
+    const nextRoundExpires = new Date(now.getTime() + RPS_CONFIG.ROUND_TIMEOUT_MS)
+
+    // Log the tie to round history
+    await supabase.from('rps_rounds_v2').insert({
+      game_id: game.id,
+      round_num: game.current_round,
+      creator_play: creatorPlay,
+      challenger_play: challengerPlay,
+      creator_exposed: game.creator_exposed_play,
+      challenger_exposed: game.challenger_exposed_play,
+      is_tie: true,
+    }).catch(() => {}) // Ignore if table doesn't exist
+
+    // Reset round state without incrementing round number
+    await supabase.from('rps_games_v2').update({
+      status: 'round_in_progress',
+      round_started_at: now.toISOString(),
+      round_expires_at: nextRoundExpires.toISOString(),
+      creator_hidden_hash: null,
+      challenger_hidden_hash: null,
+      creator_exposed_play: null,
+      challenger_exposed_play: null,
+      creator_actual_play: null,
+      challenger_actual_play: null,
+      creator_secret: null,
+      challenger_secret: null,
+      creator_bluffed: null,
+      challenger_bluffed: null,
+      creator_submitted_at: null,
+      challenger_submitted_at: null,
+      creator_revealed_at: null,
+      challenger_revealed_at: null,
+    }).eq('id', game.id)
+
+    return NextResponse.json({
+      success: true,
+      round_complete: false,
+      tie: true,
+      round: game.current_round,
+      your_play: isCreator ? creatorPlay : challengerPlay,
+      opponent_play: isCreator ? challengerPlay : creatorPlay,
+      score: { creator: game.creator_wins, challenger: game.challenger_wins },
+      message: `TIE! Both played ${creatorPlay}. Round ${game.current_round} again!`,
+    })
+  }
+
+  // Update scores (only for non-ties)
   const newCreatorWins = game.creator_wins + (result === 'P1' ? 1 : 0)
   const newChallengerWins = game.challenger_wins + (result === 'P2' ? 1 : 0)
 
