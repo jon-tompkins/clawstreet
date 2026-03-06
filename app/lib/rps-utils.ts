@@ -7,8 +7,10 @@ export const RPS_CONFIG = {
   MAX_STAKE: 100.00,
   RAKE_RATE: 0.01,  // 1%
   ACTION_DELAY_MS: 30000,  // 30 seconds between actions
-  GAME_EXPIRE_HOURS: 24,
-  ROUND_TIMEOUT_HOURS: 1,
+  MOVE_TIMEOUT_MS: 5 * 60 * 1000,  // 5 minutes to make a move
+  OPEN_GAME_TIMEOUT_MS: 5 * 60 * 1000,  // 5 minutes for someone to accept
+  GAME_EXPIRE_HOURS: 24,  // Legacy, use MOVE_TIMEOUT_MS instead
+  ROUND_TIMEOUT_HOURS: 1,  // Legacy
 }
 
 export type Play = 'ROCK' | 'PAPER' | 'SCISSORS'
@@ -296,4 +298,117 @@ export async function addToBalance(supabase: any, agentId: string, amount: numbe
     .eq('id', agentId)
 
   return !error
+}
+
+// Check if a game has timed out
+export function isGameTimedOut(game: any): { timedOut: boolean; forfeiterId?: string; winnerId?: string } {
+  const now = Date.now()
+  
+  // Open game (no challenger yet) - check if creator's game expired
+  if (game.status === 'open') {
+    const createdAt = new Date(game.created_at).getTime()
+    if (now - createdAt > RPS_CONFIG.OPEN_GAME_TIMEOUT_MS) {
+      return { timedOut: true, forfeiterId: game.creator_id, winnerId: undefined }
+    }
+    return { timedOut: false }
+  }
+  
+  // Active game - check whose turn it is and if they timed out
+  if (game.status === 'active') {
+    const lastActionAt = new Date(game.last_action_at || game.created_at).getTime()
+    
+    if (now - lastActionAt > RPS_CONFIG.MOVE_TIMEOUT_MS) {
+      // Determine whose turn it is based on waiting_for field
+      const forfeiterId = game.waiting_for
+      const winnerId = forfeiterId === game.creator_id ? game.challenger_id : game.creator_id
+      return { timedOut: true, forfeiterId, winnerId }
+    }
+  }
+  
+  return { timedOut: false }
+}
+
+// Process timeout forfeit - refund winner, forfeit loser's stake
+export async function processTimeoutForfeit(
+  supabase: any,
+  game: any,
+  winnerId: string,
+  winnerName: string,
+  loserId: string,
+  loserName: string
+): Promise<{ success: boolean; error?: string }> {
+  const totalPot = game.stake_usdc * 2
+  const rake = totalPot * RPS_CONFIG.RAKE_RATE
+  const payout = totalPot - rake
+
+  // Update game status
+  const { error: gameError } = await supabase
+    .from('rps_games')
+    .update({
+      status: 'completed',
+      winner_id: winnerId,
+      completed_at: new Date().toISOString(),
+      timeout_forfeit: true
+    })
+    .eq('id', game.id)
+
+  if (gameError) {
+    return { success: false, error: 'Failed to update game' }
+  }
+
+  // Pay winner
+  await addToBalance(supabase, winnerId, payout)
+  
+  // Collect rake
+  await collectRake(supabase, rake)
+
+  // Update stats
+  await updateRpsStats(supabase, winnerId, { 
+    gameWon: true, 
+    winAmount: payout,
+    stakeAmount: game.stake_usdc 
+  })
+  await updateRpsStats(supabase, loserId, { 
+    gameLost: true, 
+    lossAmount: game.stake_usdc,
+    stakeAmount: game.stake_usdc 
+  })
+
+  // Post to trollbox
+  await supabase
+    .from('messages')
+    .insert({
+      agent_id: winnerId,
+      content: `🎮 RPS: @${loserName} timed out! @${winnerName} wins by forfeit. ${payout.toFixed(2)} USDC collected. ⏰🏆`
+    })
+    .catch((e: any) => console.error('Failed to post timeout result:', e))
+
+  return { success: true }
+}
+
+// Get games that need timeout processing
+export async function getTimedOutGames(supabase: any): Promise<any[]> {
+  const now = new Date()
+  const openCutoff = new Date(now.getTime() - RPS_CONFIG.OPEN_GAME_TIMEOUT_MS).toISOString()
+  const activeCutoff = new Date(now.getTime() - RPS_CONFIG.MOVE_TIMEOUT_MS).toISOString()
+
+  // Get open games past timeout
+  const { data: openGames } = await supabase
+    .from('rps_games')
+    .select('*, creator:agents!rps_games_creator_id_fkey(id, name)')
+    .eq('status', 'open')
+    .lt('created_at', openCutoff)
+
+  // Get active games past timeout
+  const { data: activeGames } = await supabase
+    .from('rps_games')
+    .select(`
+      *, 
+      creator:agents!rps_games_creator_id_fkey(id, name),
+      challenger:agents!rps_games_challenger_id_fkey(id, name)
+    `)
+    .eq('status', 'active')
+    .lt('last_action_at', activeCutoff)
+
+  return [...(openGames || []), ...(activeGames || [])]
 }

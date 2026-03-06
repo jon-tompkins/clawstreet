@@ -10,6 +10,8 @@ import {
   collectRake,
   addToBalance,
   postRpsResult,
+  isGameTimedOut,
+  processTimeoutForfeit,
   Play
 } from '@/app/lib/rps-utils'
 
@@ -83,6 +85,28 @@ export async function POST(
         { error: 'You are not a player in this game' },
         { status: 403 }
       )
+    }
+
+    // Check for timeout
+    const timeoutCheck = isGameTimedOut(game)
+    if (timeoutCheck.timedOut && timeoutCheck.winnerId && timeoutCheck.forfeiterId) {
+      const winnerName = timeoutCheck.winnerId === game.creator_id 
+        ? (game.creator as any).name 
+        : (game.challenger as any).name
+      const loserName = timeoutCheck.forfeiterId === game.creator_id 
+        ? (game.creator as any).name 
+        : (game.challenger as any).name
+      
+      await processTimeoutForfeit(
+        supabase, game, timeoutCheck.winnerId, winnerName, timeoutCheck.forfeiterId, loserName
+      )
+      
+      return NextResponse.json({
+        error: 'Game ended due to timeout',
+        winner: winnerName,
+        loser: loserName,
+        reason: `${loserName} did not play within ${RPS_CONFIG.MOVE_TIMEOUT_MS / 60000} minutes`
+      }, { status: 400 })
     }
 
     // Get current round
@@ -183,20 +207,29 @@ async function handleCommit(
   })
 
   // Update round status
+  const now = new Date().toISOString()
   const newStatus = isFirstPlayer ? 'p1_committed' : 'p2_committed'
   await supabase.from('rps_rounds').update({
     status: newStatus,
-    [isFirstPlayer ? 'p1_committed_at' : 'p2_committed_at']: new Date().toISOString(),
+    [isFirstPlayer ? 'p1_committed_at' : 'p2_committed_at']: now,
   }).eq('id', round.id)
+
+  // Update game timeout tracking
+  const opponentId = isCreator ? game.challenger_id : game.creator_id
+  await supabase.from('rps_games').update({
+    last_action_at: now,
+    waiting_for: opponentId,  // Now waiting for opponent
+  }).eq('id', game.id)
 
   return NextResponse.json({
     success: true,
     round_id: round.id,
     round_num: round.round_num,
     status: newStatus,
+    timeout_seconds: RPS_CONFIG.MOVE_TIMEOUT_MS / 1000,
     message: isFirstPlayer 
-      ? 'Committed. Waiting for opponent to commit.'
-      : 'Both players committed. Submit reveals to complete round.',
+      ? `Committed. Opponent has ${RPS_CONFIG.MOVE_TIMEOUT_MS / 60000} minutes to commit.`
+      : `Both players committed. Submit reveals within ${RPS_CONFIG.MOVE_TIMEOUT_MS / 60000} minutes.`,
   })
 }
 
@@ -310,11 +343,19 @@ async function handleReveal(
     }
   } else {
     // Waiting for opponent to reveal
+    const now = new Date().toISOString()
+    const opponentId = opponentPlay.agent_id
+    await supabase.from('rps_games').update({
+      last_action_at: now,
+      waiting_for: opponentId,
+    }).eq('id', game.id)
+
     return NextResponse.json({
       success: true,
       round_id: round.id,
       your_play: body.play,
-      message: 'Revealed. Waiting for opponent to reveal.',
+      timeout_seconds: RPS_CONFIG.MOVE_TIMEOUT_MS / 1000,
+      message: `Revealed. Opponent has ${RPS_CONFIG.MOVE_TIMEOUT_MS / 60000} minutes to reveal.`,
     })
   }
 }
@@ -338,6 +379,7 @@ async function startNextRound(
         : currentRound.first_player_id)
 
   // Create next round
+  const now = new Date().toISOString()
   const { data: nextRound } = await supabase.from('rps_rounds').insert({
     game_id: game.id,
     round_num: nextRoundNum,
@@ -345,9 +387,11 @@ async function startNextRound(
     status: 'pending',
   }).select().single()
 
-  // Update game current round
+  // Update game current round and timeout tracking
   await supabase.from('rps_games').update({
     current_round: nextRoundNum,
+    last_action_at: now,
+    waiting_for: nextFirstPlayer,  // First player in next round must commit
   }).eq('id', game.id)
 
   return NextResponse.json({
@@ -362,11 +406,13 @@ async function startNextRound(
       creator: game.creator_wins,
       challenger: game.challenger_wins,
     },
+    timeout_seconds: RPS_CONFIG.MOVE_TIMEOUT_MS / 1000,
     next_round: {
       round_num: nextRoundNum,
       round_id: nextRound.id,
       first_player_id: nextFirstPlayer,
       your_turn: nextFirstPlayer === game.creator_id || nextFirstPlayer === game.challenger_id,
+      message: `Next round! First player has ${RPS_CONFIG.MOVE_TIMEOUT_MS / 60000} minutes to commit.`,
     },
   })
 }

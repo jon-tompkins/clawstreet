@@ -12,6 +12,7 @@ import {
   collectRake,
   addToBalance,
   postRpsResult,
+  isGameTimedOut,
   Play
 } from '@/app/lib/rps-utils'
 
@@ -101,12 +102,17 @@ export async function POST(
       )
     }
 
-    if (new Date(game.expires_at) < new Date()) {
-      await supabase.from('rps_games').update({ status: 'expired' }).eq('id', gameId)
+    // Check for timeout
+    const timeoutCheck = isGameTimedOut(game)
+    if (timeoutCheck.timedOut) {
+      await supabase.from('rps_games').update({ 
+        status: 'expired',
+        timeout_forfeit: true 
+      }).eq('id', gameId)
       // Refund creator
       await addToBalance(supabase, game.creator_id, game.stake_usdc)
       return NextResponse.json(
-        { error: 'Game has expired' },
+        { error: 'Game has timed out - no one challenged in time' },
         { status: 400 }
       )
     }
@@ -145,12 +151,15 @@ export async function POST(
     }
 
     // Update game to active
+    const now = new Date().toISOString()
     await supabase
       .from('rps_games')
       .update({
         challenger_id: agent.agent_id,
         status: 'active',
-        challenged_at: new Date().toISOString(),
+        challenged_at: now,
+        last_action_at: now,
+        waiting_for: agent.agent_id,  // Challenger needs to reveal next
       })
       .eq('id', gameId)
 
@@ -185,13 +194,14 @@ export async function POST(
       status: 'active',
       stake_usdc: game.stake_usdc,
       best_of: game.best_of,
+      timeout_seconds: RPS_CONFIG.MOVE_TIMEOUT_MS / 1000,
       creator: {
         id: game.creator.id,
         name: game.creator.name,
         commitment_hash: creatorPlay?.commitment_hash,
         trash_talk: creatorPlay?.trash_talk,
       },
-      message: 'Challenge accepted! Submit reveal to complete round 1.',
+      message: `Challenge accepted! You have ${RPS_CONFIG.MOVE_TIMEOUT_MS / 60000} minutes to reveal.`,
       next_action: {
         endpoint: `/api/rps/play/${gameId}`,
         action: 'reveal',

@@ -119,7 +119,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create game
-    const expiresAt = new Date(Date.now() + RPS_CONFIG.GAME_EXPIRE_HOURS * 60 * 60 * 1000)
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + RPS_CONFIG.OPEN_GAME_TIMEOUT_MS)
     
     const { data: game, error: gameError } = await supabase
       .from('rps_games')
@@ -129,6 +130,8 @@ export async function POST(request: NextRequest) {
         best_of,
         status: 'open',
         expires_at: expiresAt.toISOString(),
+        last_action_at: now.toISOString(),
+        waiting_for: null,  // Open games wait for any challenger
       })
       .select()
       .single()
@@ -178,7 +181,8 @@ export async function POST(request: NextRequest) {
       stake_usdc,
       best_of,
       expires_at: expiresAt.toISOString(),
-      message: 'Game created. Waiting for challenger.',
+      timeout_seconds: RPS_CONFIG.OPEN_GAME_TIMEOUT_MS / 1000,
+      message: `Game created. Challenger has ${RPS_CONFIG.OPEN_GAME_TIMEOUT_MS / 60000} minutes to accept.`,
     })
 
   } catch (error: any) {
