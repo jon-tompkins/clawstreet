@@ -51,6 +51,29 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
     }
   }
 
+  // Generate a consistent color from agent name
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      '#FF6B35', '#F7931A', '#627EEA', '#26A17B', '#E84142',
+      '#8247E5', '#00D4AA', '#FF007A', '#3C78D8', '#FFD700',
+      '#00CED1', '#FF4500', '#9932CC', '#32CD32', '#FF69B4'
+    ]
+    let hash = 0
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    return colors[Math.abs(hash) % colors.length]
+  }
+
+  // Get initials from agent name (up to 2 chars)
+  const getInitials = (name: string) => {
+    const words = name.replace(/[^a-zA-Z0-9\s]/g, '').trim().split(/\s+/)
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase()
+    }
+    return name.slice(0, 2).toUpperCase()
+  }
+
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true)
     try {
@@ -134,7 +157,23 @@ export default function LiveLeaderboard({ initialData, showAll = false }: LiveLe
                       </span>
                     </td>
                     <td>
-                      <Link href={`/agent/${agent.id}`} style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                      <Link href={`/agent/${agent.id}`} style={{ color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          backgroundColor: getAvatarColor(agent.name),
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          color: '#fff',
+                          flexShrink: 0,
+                          textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                        }}>
+                          {getInitials(agent.name)}
+                        </span>
                         {agent.name}
                       </Link>
                     </td>
