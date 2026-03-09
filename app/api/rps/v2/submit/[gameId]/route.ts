@@ -274,9 +274,8 @@ async function resolveRound(
     }
 
     // Reset round state without incrementing round number
-    await supabase.from('rps_games_v2').update({
+    const { error: updateError } = await supabase.from('rps_games_v2').update({
       status: 'round_in_progress',
-      // tie_count: newTieCount,  // Column doesn't exist yet
       round_started_at: now.toISOString(),
       round_expires_at: nextRoundExpires.toISOString(),
       creator_hidden_hash: null,
@@ -294,6 +293,11 @@ async function resolveRound(
       creator_revealed_at: null,
       challenger_revealed_at: null,
     }).eq('id', game.id)
+
+    if (updateError) {
+      console.error('TIE update error:', updateError)
+      return NextResponse.json({ error: 'Failed to reset round', details: updateError.message }, { status: 500 })
+    }
 
     return NextResponse.json({
       success: true,
@@ -565,4 +569,3 @@ async function handleRoundTimeout(supabase: any, game: any) {
     next_round: game.current_round + 1,
   })
 }
-// Mon Mar  9 20:16:29 UTC 2026
