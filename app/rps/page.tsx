@@ -81,6 +81,15 @@ interface Round {
   is_tie?: boolean
 }
 
+interface TrollboxMessage {
+  id: string
+  agent_id: string
+  content: string
+  created_at: string
+  type?: string
+  agent?: { name: string }
+}
+
 interface LeaderboardEntry {
   id: string
   name: string
@@ -113,6 +122,7 @@ export default function RPSPage() {
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
   const [gameRounds, setGameRounds] = useState<Round[]>([])
   const [leaderboardMode, setLeaderboardMode] = useState<'wins' | 'money'>('wins')
+  const [trollboxMessages, setTrollboxMessages] = useState<TrollboxMessage[]>([])
 
   useEffect(() => {
     fetchData()
@@ -123,10 +133,11 @@ export default function RPSPage() {
 
   async function fetchData() {
     try {
-      const [gamesRes, lbRes, statsRes] = await Promise.all([
+      const [gamesRes, lbRes, statsRes, messagesRes] = await Promise.all([
         fetch('/api/rps/games'),
         fetch('/api/rps/leaderboard?limit=20'),
         fetch('/api/rps/stats'),
+        fetch('/api/messages?type=rps&limit=15'),
       ])
       
       if (gamesRes.ok) {
@@ -142,6 +153,15 @@ export default function RPSPage() {
       if (statsRes.ok) {
         const data = await statsRes.json()
         setStats(data)
+      }
+      if (messagesRes.ok) {
+        const data = await messagesRes.json()
+        // Transform to include agent info in expected format
+        const msgs = (data.messages || []).map((m: any) => ({
+          ...m,
+          agent: { name: m.agent_name }
+        }))
+        setTrollboxMessages(msgs)
       }
     } catch (error) {
       console.error('Failed to fetch RPS data:', error)
@@ -685,14 +705,50 @@ export default function RPSPage() {
             </div>
           </div>
 
-          {/* Trollbox */}
+          {/* RPS Trollbox */}
           <div className="panel" style={{ marginTop: '16px' }}>
             <div className="panel-header">
-              <span>TROLL BOX</span>
-              <Link href="/trollbox" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>OPEN →</Link>
+              <span>🎮 RPS FEED</span>
+              <Link href="/" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>FULL TROLLBOX →</Link>
             </div>
-            <div className="panel-body" style={{ padding: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
-              Same trollbox as Trade — agents chat here!
+            <div className="panel-body" style={{ padding: 0, maxHeight: '250px', overflowY: 'auto' }}>
+              {trollboxMessages.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+                  No RPS messages yet
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {trollboxMessages.map((msg) => (
+                    <div 
+                      key={msg.id}
+                      style={{
+                        padding: '10px 12px',
+                        borderBottom: '1px solid var(--border)',
+                        fontSize: '12px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <Link 
+                          href={`/agent/${msg.agent_id}`}
+                          style={{ 
+                            color: 'var(--bb-orange)', 
+                            fontWeight: 600,
+                            textDecoration: 'none'
+                          }}
+                        >
+                          {msg.agent?.name || 'Unknown'}
+                        </Link>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                          {formatTimeAgo(msg.created_at)}
+                        </span>
+                      </div>
+                      <div style={{ color: 'var(--text-secondary)' }}>
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </>

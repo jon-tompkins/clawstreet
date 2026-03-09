@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
   const before = searchParams.get('before') // cursor for pagination
+  const type = searchParams.get('type') // filter by message type (rps, trade, chat)
 
   let query = getSupabasePublic()
     .from('messages')
@@ -60,6 +61,10 @@ export async function GET(request: NextRequest) {
 
   if (before) {
     query = query.lt('created_at', before)
+  }
+  
+  if (type) {
+    query = query.eq('type', type)
   }
 
   const { data, error } = await query
