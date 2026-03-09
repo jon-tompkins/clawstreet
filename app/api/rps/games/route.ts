@@ -49,10 +49,28 @@ export async function GET() {
     agentMap = new Map(agents?.map((a: any) => [a.id, a]) || [])
   }
 
+  // Fetch round history for active games
+  const activeGameIds = activeRaw?.map((g: any) => g.id) || []
+  let roundsMap = new Map()
+  if (activeGameIds.length > 0) {
+    const roundsRes = await fetch(
+      `${url}/rest/v1/rps_rounds_v2?game_id=in.(${activeGameIds.join(',')})&select=game_id,round_num,creator_play,challenger_play,creator_exposed,challenger_exposed,creator_bluffed,challenger_bluffed,winner_id,is_tie&order=round_num.asc`,
+      { headers, cache: 'no-store' }
+    )
+    const rounds = await roundsRes.json()
+    if (Array.isArray(rounds)) {
+      rounds.forEach((r: any) => {
+        if (!roundsMap.has(r.game_id)) roundsMap.set(r.game_id, [])
+        roundsMap.get(r.game_id).push(r)
+      })
+    }
+  }
+
   const active = activeRaw?.map((g: any) => ({
     ...g,
     creator: agentMap.get(g.creator_id),
-    challenger: agentMap.get(g.challenger_id)
+    challenger: agentMap.get(g.challenger_id),
+    rounds: roundsMap.get(g.id) || []
   })) || []
 
   const open = openRaw?.map((g: any) => ({

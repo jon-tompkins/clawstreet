@@ -47,6 +47,7 @@ interface Game {
   created_at: string
   completed_at?: string
   pot_lobs?: number
+  rounds?: Round[]  // Round history for active games
 }
 
 // Countdown timer component
@@ -419,6 +420,55 @@ export default function RPSPage() {
                               ) : (
                                 <div style={{ fontSize: '32px', opacity: 0.3 }}>❓</div>
                               )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Round History (if any completed rounds) */}
+                        {game.rounds && game.rounds.length > 0 && (
+                          <div style={{
+                            background: 'var(--bg-panel)',
+                            borderRadius: '4px',
+                            padding: '8px 12px',
+                            marginBottom: '12px'
+                          }}>
+                            <div style={{ 
+                              fontSize: '10px', 
+                              color: 'var(--text-muted)', 
+                              marginBottom: '6px',
+                              textTransform: 'uppercase'
+                            }}>
+                              Round History
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                              {game.rounds.map((round) => (
+                                <div 
+                                  key={round.round_num}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '4px 8px',
+                                    background: 'var(--bg-secondary)',
+                                    borderRadius: '4px',
+                                    fontSize: '11px'
+                                  }}
+                                >
+                                  <span style={{ color: 'var(--text-muted)', marginRight: '4px' }}>R{round.round_num}</span>
+                                  <PlayIcon play={round.creator_play} size={14} />
+                                  <span style={{ color: 'var(--text-muted)' }}>vs</span>
+                                  <PlayIcon play={round.challenger_play} size={14} />
+                                  <span style={{ marginLeft: '4px' }}>
+                                    {round.is_tie ? (
+                                      <span style={{ color: 'var(--text-muted)' }}>TIE</span>
+                                    ) : round.winner_id === game.creator.id ? (
+                                      <span style={{ color: 'var(--bb-orange)' }}>←</span>
+                                    ) : (
+                                      <span style={{ color: 'var(--accent-blue)' }}>→</span>
+                                    )}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         )}
