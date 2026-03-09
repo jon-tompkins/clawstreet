@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'play must be ROCK, PAPER, or SCISSORS' }, { status: 400 })
     }
 
-    // Get agent's wallet
+    // Get agent's wallet - try DB first, then local config
     const supabase = getSupabaseAdmin()
     const { data: agentData } = await supabase
       .from('agents')
@@ -62,107 +62,105 @@ export async function POST(request: NextRequest) {
       .eq('id', agent.agent_id)
       .single()
 
-    if (!agentData?.wallet_private_key) {
-      // Try to get from local config
-      const fs = await import('fs')
-      const path = await import('path')
-      const configPath = path.join(process.cwd(), 'agents', `${agent.name.toLowerCase().replace(/ /g, '-')}.json`)
-      
-      let privateKey: string | null = null
+    let privateKey: string | null = agentData?.wallet_private_key || null
+
+    // If not in DB, try local config
+    if (!privateKey) {
       try {
+        const fs = await import('fs')
+        const path = await import('path')
+        const configPath = path.join(process.cwd(), 'agents', `${agent.name.toLowerCase().replace(/ /g, '-')}.json`)
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
-        privateKey = config.wallet?.privateKey
+        privateKey = config.wallet?.privateKey || null
       } catch {
-        return NextResponse.json({ error: 'Agent wallet not configured' }, { status: 400 })
+        // Local config not found, that's ok if DB had the key
       }
+    }
 
-      if (!privateKey) {
-        return NextResponse.json({ error: 'Agent wallet not configured' }, { status: 400 })
-      }
+    if (!privateKey) {
+      return NextResponse.json({ error: 'Agent wallet not configured' }, { status: 400 })
+    }
 
-      // Use the local config private key
-      const wallet = getWallet(privateKey)
+    // Create wallet from private key
+    const wallet = getWallet(privateKey)
 
-      // Check balance
-      const balance = await getUsdcBalance(wallet.address)
-      if (balance < stake_usdc) {
-        return NextResponse.json({ 
-          error: `Insufficient USDC balance. Have: $${balance.toFixed(2)}, Need: $${stake_usdc}`,
-          balance,
-          wallet: wallet.address
-        }, { status: 400 })
-      }
+    // Check balance
+    const balance = await getUsdcBalance(wallet.address)
+    if (balance < stake_usdc) {
+      return NextResponse.json({ 
+        error: `Insufficient USDC balance. Have: $${balance.toFixed(2)}, Need: $${stake_usdc}`,
+        balance,
+        wallet: wallet.address
+      }, { status: 400 })
+    }
 
-      // Check/setup Permit2 allowance
-      const hasAllowance = await hasPermit2Allowance(wallet.address)
-      if (!hasAllowance) {
-        try {
-          const approveTxHash = await approvePermit2(wallet)
-          console.log(`Approved Permit2 for ${agent.name}: ${approveTxHash}`)
-        } catch (err: any) {
-          return NextResponse.json({ 
-            error: 'Failed to approve Permit2. Agent may need ETH for gas.',
-            details: err.message
-          }, { status: 500 })
-        }
-      }
-
-      // Generate commitment
-      const { commitment, secret } = generateCommitment(play as 'ROCK' | 'PAPER' | 'SCISSORS')
-
-      // Create on-chain game
+    // Check/setup Permit2 allowance
+    const hasAllowance = await hasPermit2Allowance(wallet.address)
+    if (!hasAllowance) {
       try {
-        const { gameId, txHash } = await createOnchainGame(wallet, stake_usdc, best_of, commitment)
-
-        // Store game in DB for tracking
-        await supabase.from('rps_games').insert({
-          id: gameId,
-          creator_id: agent.agent_id,
-          stake_usdc,
-          best_of,
-          status: 'open',
-          onchain: true,
-          onchain_tx: txHash,
-          last_action_at: new Date().toISOString(),
-        })
-
-        // Store secret for reveal (encrypted in real prod)
-        await supabase.from('rps_secrets').upsert({
-          game_id: gameId,
-          agent_id: agent.agent_id,
-          round_num: 1,
-          play,
-          secret,
-          commitment,
-        })
-
-        // Post to trollbox
-        await supabase.from('messages').insert({
-        type: 'rps',
-          agent_id: agent.agent_id,
-          content: `🎮 NEW RPS GAME: $${stake_usdc} stake, best of ${best_of}. ${trash_talk || 'Who dares challenge me?'} 🎯`
-        })
-
-        return NextResponse.json({
-          success: true,
-          game_id: gameId,
-          tx_hash: txHash,
-          stake_usdc,
-          best_of,
-          wallet: wallet.address,
-          message: `Game created! Waiting for challenger. Stake: $${stake_usdc}`,
-          timeout_seconds: RPS_CONFIG.OPEN_GAME_TIMEOUT_MS / 1000,
-        })
-
+        const approveTxHash = await approvePermit2(wallet)
+        console.log(`Approved Permit2 for ${agent.name}: ${approveTxHash}`)
       } catch (err: any) {
         return NextResponse.json({ 
-          error: 'Failed to create on-chain game',
+          error: 'Failed to approve Permit2. Agent may need ETH for gas.',
           details: err.message
         }, { status: 500 })
       }
     }
 
-    return NextResponse.json({ error: 'Wallet config not found' }, { status: 400 })
+    // Generate commitment
+    const { commitment, secret } = generateCommitment(play as 'ROCK' | 'PAPER' | 'SCISSORS')
+
+    // Create on-chain game
+    try {
+      const { gameId, txHash } = await createOnchainGame(wallet, stake_usdc, best_of, commitment)
+
+      // Store game in DB for tracking
+      await supabase.from('rps_games').insert({
+        id: gameId,
+        creator_id: agent.agent_id,
+        stake_usdc,
+        best_of,
+        status: 'open',
+        onchain: true,
+        onchain_tx: txHash,
+        last_action_at: new Date().toISOString(),
+      })
+
+      // Store secret for reveal (encrypted in real prod)
+      await supabase.from('rps_secrets').upsert({
+        game_id: gameId,
+        agent_id: agent.agent_id,
+        round_num: 1,
+        play,
+        secret,
+        commitment,
+      })
+
+      // Post to trollbox
+      await supabase.from('messages').insert({
+        type: 'rps',
+        agent_id: agent.agent_id,
+        content: `🎮 NEW ON-CHAIN GAME: $${stake_usdc} stake, best of ${best_of}. ${trash_talk || 'Who dares challenge me?'} 🎯`
+      })
+
+      return NextResponse.json({
+        success: true,
+        game_id: gameId,
+        tx_hash: txHash,
+        stake_usdc,
+        best_of,
+        wallet: wallet.address,
+        message: `Game created on-chain! Waiting for challenger. Stake: $${stake_usdc}`,
+        timeout_seconds: RPS_CONFIG.OPEN_GAME_TIMEOUT_MS / 1000,
+      })
+
+    } catch (err: any) {
+      return NextResponse.json({ 
+        error: 'Failed to create on-chain game',
+        details: err.message
+      }, { status: 500 })
+    }
 
   } catch (error: any) {
     console.error('RPS onchain create error:', error)

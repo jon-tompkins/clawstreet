@@ -123,26 +123,38 @@ async function handleSubmit(
   if (otherHash) {
     // Both submitted - move to reveal phase
     let onchainResult: any = null
+    let onchainDebug: any = { attempted: false }
     
     // On round 1, create the on-chain escrow game
     if (game.current_round === 1 && !game.onchain_game_id) {
+      onchainDebug.attempted = true
       try {
         const creatorId = (game.creator as any).id
         const challengerId = (game.challenger as any).id
+        onchainDebug.creatorId = creatorId
+        onchainDebug.challengerId = challengerId
         
         // Check DB first for wallet keys, fall back to env vars
         const creatorKey = await getAgentWalletKeyAsync(creatorId)
         const challengerKey = await getAgentWalletKeyAsync(challengerId)
+        onchainDebug.hasCreatorKey = !!creatorKey
+        onchainDebug.hasChallengerKey = !!challengerKey
         
         if (creatorKey && challengerKey) {
           const creatorWallet = getWallet(creatorKey)
           const challengerWallet = getWallet(challengerKey)
+          onchainDebug.creatorAddress = creatorWallet.address
+          onchainDebug.challengerAddress = challengerWallet.address
           
           // Check USDC balances
           const creatorBalance = await getUsdcBalance(creatorWallet.address)
           const challengerBalance = await getUsdcBalance(challengerWallet.address)
+          onchainDebug.creatorBalance = creatorBalance
+          onchainDebug.challengerBalance = challengerBalance
+          onchainDebug.stake = game.stake_usdc
           
           if (creatorBalance >= game.stake_usdc && challengerBalance >= game.stake_usdc) {
+            onchainDebug.balanceCheck = 'passed'
             // Get commitments (the hidden hashes already submitted)
             const creatorCommitment = isCreator ? body.hidden_hash : game.creator_hidden_hash
             const challengerCommitment = isCreator ? game.challenger_hidden_hash : body.hidden_hash
@@ -177,12 +189,15 @@ async function handleSubmit(
               escrow_status: 'locked',
             }
           } else {
+            onchainDebug.balanceCheck = 'failed'
             console.warn('Insufficient USDC for on-chain escrow:', { creatorBalance, challengerBalance, stake: game.stake_usdc })
           }
         } else {
+          onchainDebug.error = 'missing_wallet_keys'
           console.warn('Missing wallet keys for on-chain:', { creatorId, challengerId, hasCreatorKey: !!creatorKey, hasChallengerKey: !!challengerKey })
         }
       } catch (onchainError: any) {
+        onchainDebug.error = onchainError.message
         console.error('On-chain escrow failed (continuing off-chain):', onchainError.message)
       }
     }
@@ -200,6 +215,7 @@ async function handleSubmit(
       opponent_exposed: isCreator ? game.challenger_exposed_play : game.creator_exposed_play,
       reveal_timeout_seconds: RPS_CONFIG.ROUND_TIMEOUT_MS / 1000,
       onchain: onchainResult,
+      onchain_debug: onchainDebug,
       next_action: {
         endpoint: `/api/rps/v2/submit/${game.id}`,
         body: { reveal_play: 'YOUR_ACTUAL_PLAY', reveal_secret: 'YOUR_SECRET' }
