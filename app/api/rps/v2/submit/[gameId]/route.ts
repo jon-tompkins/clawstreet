@@ -191,12 +191,22 @@ async function handleReveal(
 
   await supabase.from('rps_games_v2').update(updates).eq('id', game.id)
 
-  // Check if both revealed
-  const otherActual = isCreator ? game.challenger_actual_play : game.creator_actual_play
+  // Re-read game to check if both revealed (other player may have revealed concurrently)
+  const { data: updatedGame } = await supabase
+    .from('rps_games_v2')
+    .select(`
+      *, 
+      creator:agents!rps_games_v2_creator_id_fkey(id, name),
+      challenger:agents!rps_games_v2_challenger_id_fkey(id, name)
+    `)
+    .eq('id', game.id)
+    .single()
+
+  const otherActual = isCreator ? updatedGame.challenger_actual_play : updatedGame.creator_actual_play
 
   if (otherActual) {
-    // Both revealed - resolve round
-    return await resolveRound(supabase, game, body.reveal_play, otherActual, isCreator)
+    // Both revealed - resolve round (use updated game state)
+    return await resolveRound(supabase, updatedGame, body.reveal_play, otherActual, isCreator)
   }
 
   return NextResponse.json({
