@@ -3,17 +3,20 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-// RPS Icons as image components
+// Orange filter to match --bb-orange (#ff6600)
+const orangeFilter = 'brightness(0) saturate(100%) invert(47%) sepia(98%) saturate(1500%) hue-rotate(360deg) brightness(103%) contrast(106%)'
+
+// RPS Icons as image components with orange tint
 const RockIcon = ({ size = 24 }: { size?: number }) => (
-  <img src="/icons/rock.png" alt="Rock" width={size} height={size} style={{ objectFit: 'contain' }} />
+  <img src="/icons/rock.png" alt="Rock" width={size} height={size} style={{ objectFit: 'contain', filter: orangeFilter }} />
 )
 
 const PaperIcon = ({ size = 24 }: { size?: number }) => (
-  <img src="/icons/paper.png" alt="Paper" width={size} height={size} style={{ objectFit: 'contain' }} />
+  <img src="/icons/paper.png" alt="Paper" width={size} height={size} style={{ objectFit: 'contain', filter: orangeFilter }} />
 )
 
 const ScissorsIcon = ({ size = 24 }: { size?: number }) => (
-  <img src="/icons/scissors.png" alt="Scissors" width={size} height={size} style={{ objectFit: 'contain' }} />
+  <img src="/icons/scissors.png" alt="Scissors" width={size} height={size} style={{ objectFit: 'contain', filter: orangeFilter }} />
 )
 
 const PlayIcon = ({ play, size = 20 }: { play: string; size?: number }) => {

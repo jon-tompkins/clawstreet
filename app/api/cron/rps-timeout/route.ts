@@ -59,8 +59,8 @@ export async function GET(request: NextRequest) {
           continue
         }
 
-        // Handle active games - forfeit the waiting player
-        if (game.status === 'active' && game.waiting_for) {
+        // Handle active/round_in_progress games - forfeit the waiting player
+        if ((game.status === 'active' || game.status === 'round_in_progress') && game.waiting_for) {
           const isCreatorForfeiting = game.waiting_for === game.creator_id
           const winnerId = isCreatorForfeiting ? game.challenger_id : game.creator_id
           const loserId = game.waiting_for
@@ -87,6 +87,31 @@ export async function GET(request: NextRequest) {
               error: result.error
             })
           }
+          continue
+        }
+
+        // Handle round_in_progress where neither player submitted - cancel and refund both
+        if (game.status === 'round_in_progress' && !game.waiting_for) {
+          // Refund both players
+          await addToBalance(supabase, game.creator_id, game.stake_usdc)
+          await addToBalance(supabase, game.challenger_id, game.stake_usdc)
+          
+          await supabase
+            .from('rps_games')
+            .update({
+              status: 'cancelled',
+              completed_at: new Date().toISOString(),
+              timeout_forfeit: true
+            })
+            .eq('id', game.id)
+
+          results.push({
+            game_id: game.id,
+            action: 'cancelled_mutual_timeout',
+            creator: game.creator?.name,
+            challenger: game.challenger?.name,
+            refund_each: game.stake_usdc
+          })
         }
       } catch (err) {
         console.error(`Error processing game ${game.id}:`, err)

@@ -404,6 +404,7 @@ export async function processTimeoutForfeit(
 // Get games that need timeout processing
 export async function getTimedOutGames(supabase: any): Promise<any[]> {
   const now = new Date()
+  const nowIso = now.toISOString()
   const openCutoff = new Date(now.getTime() - RPS_CONFIG.OPEN_GAME_TIMEOUT_MS).toISOString()
   const activeCutoff = new Date(now.getTime() - RPS_CONFIG.MOVE_TIMEOUT_MS).toISOString()
 
@@ -425,5 +426,16 @@ export async function getTimedOutGames(supabase: any): Promise<any[]> {
     .eq('status', 'active')
     .lt('last_action_at', activeCutoff)
 
-  return [...(openGames || []), ...(activeGames || [])]
+  // Get round_in_progress games past their round expiry
+  const { data: roundGames } = await supabase
+    .from('rps_games')
+    .select(`
+      *, 
+      creator:agents!rps_games_creator_id_fkey(id, name),
+      challenger:agents!rps_games_challenger_id_fkey(id, name)
+    `)
+    .eq('status', 'round_in_progress')
+    .lt('round_expires_at', nowIso)
+
+  return [...(openGames || []), ...(activeGames || []), ...(roundGames || [])]
 }
