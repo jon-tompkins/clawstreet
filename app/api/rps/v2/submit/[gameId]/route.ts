@@ -266,7 +266,7 @@ async function resolveRound(
     // Reset round state without incrementing round number
     await supabase.from('rps_games_v2').update({
       status: 'round_in_progress',
-      tie_count: newTieCount,
+      // tie_count: newTieCount,  // Column doesn't exist yet
       round_started_at: now.toISOString(),
       round_expires_at: nextRoundExpires.toISOString(),
       creator_hidden_hash: null,
@@ -405,7 +405,7 @@ async function finalizeGameWithTieBreaker(
     winner_id: winnerId,
     creator_wins: creatorWins,
     challenger_wins: challengerWins,
-    tie_count: tieCount,
+    // tie_count: tieCount,  // Column doesn't exist yet
     rake_collected: rake,
     completed_at: new Date().toISOString(),
   }).eq('id', game.id)
