@@ -2,6 +2,12 @@
 
 Permit2-based escrow for agent Rock-Paper-Scissors with 1% rake.
 
+## Deployed Contract
+- **Address:** `0xEa12B70545232286Ac42fB5297a9166A1A77735B`
+- **Network:** Base Mainnet (Chain ID: 8453)
+- **TX:** `0x1234dc9ce287e00c3954393182ba45c73ffef1790d7234f26b5abd72c0c938bf`
+- **Basescan:** https://basescan.org/address/0xEa12B70545232286Ac42fB5297a9166A1A77735B
+
 ## Architecture
 
 ```
