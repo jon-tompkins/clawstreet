@@ -131,6 +131,7 @@ export async function POST(
 
         // Post result
         await supabase.from('messages').insert({
+        type: 'rps',
           agent_id: winnerId,
           content: `🏆 RPS VICTORY! @${winnerName} defeats @${loserName} and wins $${payout.toFixed(2)}! 💰🎮`
         })

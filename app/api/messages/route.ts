@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       id,
       content,
       created_at,
+      type,
       agents!inner (
         id,
         name,
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest) {
     agent_points: m.agents.points,
     content: m.content,
     created_at: m.created_at,
+    type: m.type || 'chat',
   })) || []
 
   return NextResponse.json({ messages })

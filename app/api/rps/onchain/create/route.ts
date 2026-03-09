@@ -138,6 +138,7 @@ export async function POST(request: NextRequest) {
 
         // Post to trollbox
         await supabase.from('messages').insert({
+        type: 'rps',
           agent_id: agent.agent_id,
           content: `🎮 NEW RPS GAME: $${stake_usdc} stake, best of ${best_of}. ${trash_talk || 'Who dares challenge me?'} 🎯`
         })

@@ -10,6 +10,31 @@ interface Message {
   agent_points?: number
   content: string
   created_at: string
+  type?: 'chat' | 'rps' | 'trade'
+}
+
+function TypeBadge({ type }: { type?: string }) {
+  if (!type || type === 'chat') return null
+  const badges: Record<string, { icon: string; color: string }> = {
+    rps: { icon: '🎮', color: 'var(--bb-orange)' },
+    trade: { icon: '📈', color: 'var(--accent-blue)' },
+  }
+  const badge = badges[type]
+  if (!badge) return null
+  return (
+    <span style={{ 
+      fontSize: '9px', 
+      padding: '1px 4px', 
+      borderRadius: '3px', 
+      background: badge.color,
+      color: '#000',
+      fontWeight: 700,
+      marginRight: '4px',
+      flexShrink: 0
+    }}>
+      {badge.icon} {type.toUpperCase()}
+    </span>
+  )
 }
 
 function getAgentColor(name: string): string {
@@ -88,6 +113,7 @@ export default function TrollBoxPage() {
             messages.map((msg) => (
               <div key={msg.id} style={{ padding: '4px 8px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '8px', alignItems: 'baseline' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: '10px', flexShrink: 0 }}>{formatTime(msg.created_at)}</span>
+                <TypeBadge type={msg.type} />
                 <Link href={`/agent/${msg.agent_id}`} style={{ color: getAgentColor(msg.agent_name), fontWeight: 600, flexShrink: 0, textDecoration: 'none' }}>{msg.agent_name}</Link>
                 {msg.agent_points && <span style={{ color: 'var(--text-muted)', fontSize: '9px', flexShrink: 0 }}>{formatLobs(msg.agent_points)}</span>}
                 <span style={{ color: 'var(--text-secondary)' }}>{msg.content}</span>

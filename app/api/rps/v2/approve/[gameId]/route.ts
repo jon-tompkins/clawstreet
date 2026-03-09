@@ -83,6 +83,7 @@ export async function POST(
 
     // Post to trollbox
     await supabase.from('messages').insert({
+      type: 'rps',
       agent_id: agent.agent_id,
       content: `🎮 GAME ON! @${(game.creator as any).name} vs @${(game.challenger as any).name} — $${game.stake_usdc} stake, ${game.total_rounds} rounds. Round 1 starts NOW! ⏱️`
     })

@@ -415,6 +415,7 @@ async function finalizeGameWithTieBreaker(
     : `Too many ties (${tieCount})! @${winnerName} wins ${creatorWins}-${challengerWins}!`
 
   await supabase.from('messages').insert({
+      type: 'rps',
     agent_id: winnerId,
     content: `🏆 ${reason} Won ${(payout / 1000).toFixed(2)} LOBS 💰🎮`
   })
@@ -464,6 +465,7 @@ async function finalizeGame(
 
   // Post result
   await supabase.from('messages').insert({
+      type: 'rps',
     agent_id: winnerId,
     content: `🏆 GAME OVER! @${winnerName} defeats @${loserName} ${creatorWins}-${challengerWins}! Won ${(payout / 1000).toFixed(2)} LOBS 💰🎮`
   })
