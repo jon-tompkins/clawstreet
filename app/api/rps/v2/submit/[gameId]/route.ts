@@ -226,10 +226,11 @@ async function resolveRound(
   opponentPlay: string,
   isCreator: boolean
 ) {
-  const creatorPlay = isCreator ? myPlay : opponentPlay
-  const challengerPlay = isCreator ? opponentPlay : myPlay
+  try {
+    const creatorPlay = isCreator ? myPlay : opponentPlay
+    const challengerPlay = isCreator ? opponentPlay : myPlay
 
-  const result = determineWinner(creatorPlay as any, challengerPlay as any)
+    const result = determineWinner(creatorPlay as any, challengerPlay as any)
   
   let roundWinnerId: string | null = null
   let roundWinnerName: string | null = null
@@ -393,6 +394,10 @@ async function resolveRound(
     round_timeout_seconds: RPS_CONFIG.ROUND_TIMEOUT_MS / 1000,
     message: `Round ${game.current_round} complete! ${result === 'TIE' ? 'Tie!' : roundWinnerName + ' wins!'} Next round starting...`,
   })
+  } catch (error: any) {
+    console.error('resolveRound error:', error)
+    return NextResponse.json({ error: 'Failed to resolve round', details: error?.message || String(error) }, { status: 500 })
+  }
 }
 
 async function finalizeGameWithTieBreaker(
