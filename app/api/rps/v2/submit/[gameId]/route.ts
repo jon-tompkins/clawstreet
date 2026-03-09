@@ -249,16 +249,18 @@ async function resolveRound(
     const now = new Date()
     const nextRoundExpires = new Date(now.getTime() + RPS_CONFIG.ROUND_TIMEOUT_MS)
 
-    // Log the tie to round history
-    await supabase.from('rps_rounds_v2').insert({
-      game_id: game.id,
-      round_num: game.current_round,
-      creator_play: creatorPlay,
-      challenger_play: challengerPlay,
-      creator_exposed: game.creator_exposed_play,
-      challenger_exposed: game.challenger_exposed_play,
-      is_tie: true,
-    }).catch(() => {}) // Ignore if table doesn't exist
+    // Log the tie to round history (ignore if table doesn't exist)
+    try {
+      await supabase.from('rps_rounds_v2').insert({
+        game_id: game.id,
+        round_num: game.current_round,
+        creator_play: creatorPlay,
+        challenger_play: challengerPlay,
+        creator_exposed: game.creator_exposed_play,
+        challenger_exposed: game.challenger_exposed_play,
+        is_tie: true,
+      })
+    } catch (e) { /* ignore */ }
 
     // Check if ties exceed total rounds - end game early
     if (newTieCount > game.total_rounds) {
@@ -538,15 +540,17 @@ async function handleRoundTimeout(supabase: any, game: any) {
   const gameOver = newCreatorWins >= winsNeeded || newChallengerWins >= winsNeeded
 
   if (gameOver) {
-    // Log timeout round to history
-    await supabase.from('rps_rounds_v2').insert({
-      game_id: game.id,
-      round_num: game.current_round,
-      creator_play: creatorSubmitted ? 'TIMEOUT_WIN' : null,
-      challenger_play: creatorSubmitted ? null : 'TIMEOUT_WIN',
-      winner_id: winnerId,
-      is_tie: false,
-    }).catch(() => {})
+    // Log timeout round to history (ignore if table doesn't exist)
+    try {
+      await supabase.from('rps_rounds_v2').insert({
+        game_id: game.id,
+        round_num: game.current_round,
+        creator_play: creatorSubmitted ? 'TIMEOUT_WIN' : null,
+        challenger_play: creatorSubmitted ? null : 'TIMEOUT_WIN',
+        winner_id: winnerId,
+        is_tie: false,
+      })
+    } catch (e) { /* ignore */ }
     
     return await finalizeGame(supabase, game, newCreatorWins, newChallengerWins)
   }
