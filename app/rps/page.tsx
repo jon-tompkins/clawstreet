@@ -279,7 +279,7 @@ export default function RPSPage() {
                   No active games. Check open challenges below!
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {activeGames.map((game) => {
                     const winsNeeded = getWinsNeeded(game.total_rounds)
                     const creatorProgress = getProgressPercent(game.creator_wins, winsNeeded)
@@ -290,31 +290,31 @@ export default function RPSPage() {
                         key={game.id}
                         style={{
                           background: 'var(--bg-secondary)',
-                          border: '2px solid var(--bb-orange)',
-                          padding: '20px',
+                          border: '1px solid var(--bb-orange)',
+                          padding: '12px',
                           borderRadius: '4px'
                         }}
                       >
-                        {/* Players and Score */}
+                        {/* Players and Score - Compact */}
                         <div style={{ 
                           display: 'flex', 
                           justifyContent: 'space-between', 
                           alignItems: 'center',
-                          marginBottom: '16px'
+                          marginBottom: '8px'
                         }}>
-                          <span style={{ fontSize: '16px', fontWeight: 700 }}>{game.creator.name}</span>
-                          <span style={{ color: 'var(--text-muted)' }}>vs</span>
-                          <span style={{ fontSize: '16px', fontWeight: 700 }}>{game.challenger?.name}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 700 }}>{game.creator.name}</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>vs</span>
+                          <span style={{ fontSize: '13px', fontWeight: 700 }}>{game.challenger?.name}</span>
                         </div>
 
-                        {/* Progress Bars */}
-                        <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
-                          {/* Creator Progress */}
+                        {/* Progress Bars - Compact */}
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                          {/* Creator Progress - fills left to right */}
                           <div style={{ flex: 1 }}>
                             <div style={{ 
-                              height: '24px', 
+                              height: '18px', 
                               background: 'var(--bg-panel)', 
-                              borderRadius: '4px',
+                              borderRadius: '3px',
                               overflow: 'hidden',
                               position: 'relative'
                             }}>
@@ -326,10 +326,10 @@ export default function RPSPage() {
                               }} />
                               <span style={{
                                 position: 'absolute',
-                                left: '8px',
+                                left: '6px',
                                 top: '50%',
                                 transform: 'translateY(-50%)',
-                                fontSize: '12px',
+                                fontSize: '11px',
                                 fontWeight: 700,
                                 color: creatorProgress > 30 ? '#000' : 'var(--text-primary)'
                               }}>
@@ -340,23 +340,26 @@ export default function RPSPage() {
 
                           {/* Target */}
                           <div style={{ 
-                            fontSize: '14px', 
+                            fontSize: '11px', 
                             fontWeight: 700,
                             color: 'var(--text-muted)',
-                            minWidth: '80px',
-                            textAlign: 'center'
+                            minWidth: '60px',
+                            textAlign: 'center',
+                            lineHeight: '18px'
                           }}>
                             First to {winsNeeded}
                           </div>
 
-                          {/* Challenger Progress */}
+                          {/* Challenger Progress - fills RIGHT to LEFT so number stays visible on right */}
                           <div style={{ flex: 1 }}>
                             <div style={{ 
-                              height: '24px', 
+                              height: '18px', 
                               background: 'var(--bg-panel)', 
-                              borderRadius: '4px',
+                              borderRadius: '3px',
                               overflow: 'hidden',
-                              position: 'relative'
+                              position: 'relative',
+                              display: 'flex',
+                              justifyContent: 'flex-end'
                             }}>
                               <div style={{
                                 width: `${challengerProgress}%`,
@@ -366,10 +369,10 @@ export default function RPSPage() {
                               }} />
                               <span style={{
                                 position: 'absolute',
-                                right: '8px',
+                                right: '6px',
                                 top: '50%',
                                 transform: 'translateY(-50%)',
-                                fontSize: '12px',
+                                fontSize: '11px',
                                 fontWeight: 700,
                                 color: challengerProgress > 30 ? '#000' : 'var(--text-primary)'
                               }}>
@@ -379,31 +382,28 @@ export default function RPSPage() {
                           </div>
                         </div>
 
-                        {/* Exposed Plays - Center Stage */}
+                        {/* Exposed Plays - Compact */}
                         {(game.creator_exposed_play || game.challenger_exposed_play || game.status === 'round_in_progress') && (
                           <div style={{
                             display: 'flex',
                             justifyContent: 'space-around',
                             alignItems: 'center',
-                            padding: '16px 0',
-                            marginBottom: '12px',
+                            padding: '8px 0',
+                            marginBottom: '8px',
                             background: 'var(--bg-panel)',
-                            borderRadius: '4px'
+                            borderRadius: '3px'
                           }}>
                             <div style={{ textAlign: 'center' }}>
                               {game.creator_submitted_at ? (
                                 <>
-                                  <PlayIcon play={game.creator_exposed_play || ''} size={40} />
-                                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                                    {game.creator_exposed_play}
-                                  </div>
+                                  <PlayIcon play={game.creator_exposed_play || ''} size={28} />
                                 </>
                               ) : (
-                                <div style={{ fontSize: '32px', opacity: 0.3 }}>❓</div>
+                                <div style={{ fontSize: '24px', opacity: 0.3 }}>❓</div>
                               )}
                             </div>
                             <div style={{ 
-                              fontSize: '20px', 
+                              fontSize: '14px', 
                               fontWeight: 700,
                               color: 'var(--bb-orange)'
                             }}>
@@ -412,76 +412,65 @@ export default function RPSPage() {
                             <div style={{ textAlign: 'center' }}>
                               {game.challenger_submitted_at ? (
                                 <>
-                                  <PlayIcon play={game.challenger_exposed_play || ''} size={40} />
-                                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                                    {game.challenger_exposed_play}
-                                  </div>
+                                  <PlayIcon play={game.challenger_exposed_play || ''} size={28} />
                                 </>
                               ) : (
-                                <div style={{ fontSize: '32px', opacity: 0.3 }}>❓</div>
+                                <div style={{ fontSize: '24px', opacity: 0.3 }}>❓</div>
                               )}
                             </div>
                           </div>
                         )}
 
-                        {/* Round History (if any completed rounds) */}
+                        {/* Round History - Compact inline */}
                         {game.rounds && game.rounds.length > 0 && (
                           <div style={{
-                            background: 'var(--bg-panel)',
-                            borderRadius: '4px',
-                            padding: '8px 12px',
-                            marginBottom: '12px'
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '4px',
+                            marginBottom: '6px',
+                            alignItems: 'center'
                           }}>
-                            <div style={{ 
-                              fontSize: '10px', 
-                              color: 'var(--text-muted)', 
-                              marginBottom: '6px',
-                              textTransform: 'uppercase'
-                            }}>
-                              Round History
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                              {game.rounds.map((round) => (
-                                <div 
-                                  key={round.round_num}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    padding: '4px 8px',
-                                    background: 'var(--bg-secondary)',
-                                    borderRadius: '4px',
-                                    fontSize: '11px'
-                                  }}
-                                >
-                                  <span style={{ color: 'var(--text-muted)', marginRight: '4px' }}>R{round.round_num}</span>
-                                  <PlayIcon play={round.creator_play} size={14} />
-                                  <span style={{ color: 'var(--text-muted)' }}>vs</span>
-                                  <PlayIcon play={round.challenger_play} size={14} />
-                                  <span style={{ marginLeft: '4px' }}>
-                                    {round.is_tie ? (
-                                      <span style={{ color: 'var(--text-muted)' }}>TIE</span>
-                                    ) : round.winner_id === game.creator.id ? (
-                                      <span style={{ color: 'var(--bb-orange)' }}>←</span>
-                                    ) : (
-                                      <span style={{ color: 'var(--accent-blue)' }}>→</span>
-                                    )}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
+                            <span style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', marginRight: '4px' }}>
+                              History:
+                            </span>
+                            {game.rounds.map((round) => (
+                              <div 
+                                key={round.round_num}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '2px',
+                                  padding: '2px 4px',
+                                  background: 'var(--bg-panel)',
+                                  borderRadius: '3px',
+                                  fontSize: '10px'
+                                }}
+                              >
+                                <span style={{ color: 'var(--text-muted)' }}>R{round.round_num}</span>
+                                <PlayIcon play={round.creator_play} size={10} />
+                                <span style={{ color: 'var(--text-muted)', fontSize: '8px' }}>v</span>
+                                <PlayIcon play={round.challenger_play} size={10} />
+                                {round.is_tie ? (
+                                  <span style={{ color: 'var(--text-muted)', marginLeft: '2px' }}>-</span>
+                                ) : round.winner_id === game.creator.id ? (
+                                  <span style={{ color: 'var(--bb-orange)', marginLeft: '2px' }}>←</span>
+                                ) : (
+                                  <span style={{ color: 'var(--accent-blue)', marginLeft: '2px' }}>→</span>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         )}
 
-                        {/* Game Info with Timer */}
+                        {/* Game Info with Timer - Compact */}
                         <div style={{ 
                           display: 'flex', 
                           justifyContent: 'space-between',
                           alignItems: 'center',
-                          fontSize: '12px',
+                          fontSize: '10px',
                           color: 'var(--text-muted)'
                         }}>
-                          <span>Round {game.current_round}/{game.total_rounds} • ${game.stake_usdc} stake</span>
+                          <span>R{game.current_round}/{game.total_rounds} • ${game.stake_usdc}</span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <span style={{ 
                               padding: '2px 8px',
