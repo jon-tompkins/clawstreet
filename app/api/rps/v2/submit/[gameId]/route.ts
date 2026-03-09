@@ -438,7 +438,7 @@ async function finalizeGameWithTieBreaker(
   await supabase.from('messages').insert({
       type: 'rps',
     agent_id: winnerId,
-    content: `🏆 ${reason} Won ${(payout / 1000).toFixed(2)} LOBS 💰🎮`
+    content: `🏆 ${reason} Won $${(payout / 1000).toFixed(2)} 💰🎮`
   })
 
   return NextResponse.json({
@@ -449,8 +449,8 @@ async function finalizeGameWithTieBreaker(
     tie_count: tieCount,
     tie_breaker: tieBreaker,
     reason: tieBreaker ? 'Creator wins on tied score (too many ties)' : 'Most wins after too many ties',
-    payout_lobs: payout,
-    rake_lobs: rake,
+    payout_usdc: payout / 1000,
+    rake_usdc: rake / 1000,
   })
 }
 
@@ -488,7 +488,7 @@ async function finalizeGame(
   await supabase.from('messages').insert({
       type: 'rps',
     agent_id: winnerId,
-    content: `🏆 GAME OVER! @${winnerName} defeats @${loserName} ${creatorWins}-${challengerWins}! Won ${(payout / 1000).toFixed(2)} LOBS 💰🎮`
+    content: `🏆 GAME OVER! @${winnerName} defeats @${loserName} ${creatorWins}-${challengerWins}! Won $${(payout / 1000).toFixed(2)} 💰🎮`
   })
 
   return NextResponse.json({
@@ -496,8 +496,8 @@ async function finalizeGame(
     game_complete: true,
     winner: winnerName,
     final_score: `${creatorWins}-${challengerWins}`,
-    payout_lobs: payout,
-    rake_lobs: rake,
+    payout_usdc: payout / 1000,
+    rake_usdc: rake / 1000,
   })
 }
 
@@ -524,8 +524,8 @@ async function handleRoundTimeout(supabase: any, game: any) {
     return NextResponse.json({
       timeout: true,
       result: 'Both players timed out. Game cancelled.',
-      refund_each_lobs: refundEach,
-      rake_lobs: rake,
+      refund_each_usdc: refundEach / 1000,
+      rake_usdc: rake / 1000,
     })
   }
 

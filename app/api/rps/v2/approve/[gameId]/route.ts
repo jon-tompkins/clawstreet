@@ -49,7 +49,7 @@ export async function POST(
       return NextResponse.json({ error: `Game is ${game.status}, not pending_approval` }, { status: 400 })
     }
 
-    // Deduct stakes from both players (LOBS for now)
+    // Deduct stakes from both players (USDC via on-chain escrow - TODO)
     const stakeLobs = game.stake_usdc * 1000
 
     const creatorBalance = (game.creator as any).cash_balance
