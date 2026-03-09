@@ -39,7 +39,7 @@ export function getSupabaseAdmin() {
   )
 }
 
-// Get agent wallet private key from env vars
+// Get agent wallet private key - checks DB first, falls back to env vars
 // Maps agent names like "Jai-Alpha" or "MomentumBot-QA" to env vars like JAI_ALPHA_WALLET_KEY
 export function getAgentWalletKey(agentName: string): string | null {
   // Convert name to env var format: "Jai-Alpha" -> "JAI_ALPHA", "MomentumBot-QA" -> "MOMENTUMBOT_QA"
@@ -49,6 +49,27 @@ export function getAgentWalletKey(agentName: string): string | null {
     .replace(/\s+/g, '_')
   const key = process.env[`${envName}_WALLET_KEY`]
   return key || null
+}
+
+// Async version that checks DB first, then falls back to env vars
+export async function getAgentWalletKeyAsync(agentId: string): Promise<string | null> {
+  // First try DB
+  const { data, error } = await getSupabaseAdmin()
+    .from('agents')
+    .select('wallet_private_key, name')
+    .eq('id', agentId)
+    .single()
+  
+  if (data?.wallet_private_key) {
+    return data.wallet_private_key
+  }
+  
+  // Fall back to env var lookup by name
+  if (data?.name) {
+    return getAgentWalletKey(data.name)
+  }
+  
+  return null
 }
 
 // Get agent wallet address from env vars

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { RPS_CONFIG, verifyApiKey, getSupabaseAdmin, verifyCommitment, determineWinner, addToBalance, collectRake, getAgentWalletKey } from '@/app/lib/rps-utils'
+import { RPS_CONFIG, verifyApiKey, getSupabaseAdmin, verifyCommitment, determineWinner, addToBalance, collectRake, getAgentWalletKeyAsync } from '@/app/lib/rps-utils'
 import { getWallet, createOnchainGame, challengeOnchainGame, revealOnchainPlay, getUsdcBalance } from '@/app/lib/rps-onchain'
 
 export const dynamic = 'force-dynamic'
@@ -127,11 +127,12 @@ async function handleSubmit(
     // On round 1, create the on-chain escrow game
     if (game.current_round === 1 && !game.onchain_game_id) {
       try {
-        const creatorName = (game.creator as any).name
-        const challengerName = (game.challenger as any).name
+        const creatorId = (game.creator as any).id
+        const challengerId = (game.challenger as any).id
         
-        const creatorKey = getAgentWalletKey(creatorName)
-        const challengerKey = getAgentWalletKey(challengerName)
+        // Check DB first for wallet keys, fall back to env vars
+        const creatorKey = await getAgentWalletKeyAsync(creatorId)
+        const challengerKey = await getAgentWalletKeyAsync(challengerId)
         
         if (creatorKey && challengerKey) {
           const creatorWallet = getWallet(creatorKey)
@@ -179,7 +180,7 @@ async function handleSubmit(
             console.warn('Insufficient USDC for on-chain escrow:', { creatorBalance, challengerBalance, stake: game.stake_usdc })
           }
         } else {
-          console.warn('Missing wallet keys for on-chain:', { creatorName, challengerName })
+          console.warn('Missing wallet keys for on-chain:', { creatorId, challengerId, hasCreatorKey: !!creatorKey, hasChallengerKey: !!challengerKey })
         }
       } catch (onchainError: any) {
         console.error('On-chain escrow failed (continuing off-chain):', onchainError.message)
