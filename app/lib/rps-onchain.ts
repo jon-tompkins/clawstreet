@@ -2,9 +2,10 @@ import { ethers, Wallet, Contract } from 'ethers'
 import { RPS_CONFIG } from './rps-utils'
 
 // ABI for RPSEscrow contract (minimal)
+// Permit2's PermitTransferFrom is a nested struct: { permitted: { token, amount }, nonce, deadline }
 const ESCROW_ABI = [
-  'function createGame(uint96 stake, uint8 bestOf, bytes32 commitment, tuple(address token, uint256 amount, uint256 nonce, uint256 deadline) permit, bytes signature) returns (bytes32 gameId)',
-  'function challenge(bytes32 gameId, bytes32 commitment, tuple(address token, uint256 amount, uint256 nonce, uint256 deadline) permit, bytes signature)',
+  'function createGame(uint96 stake, uint8 bestOf, bytes32 commitment, tuple(tuple(address token, uint256 amount) permitted, uint256 nonce, uint256 deadline) permit, bytes signature) returns (bytes32 gameId)',
+  'function challenge(bytes32 gameId, bytes32 commitment, tuple(tuple(address token, uint256 amount) permitted, uint256 nonce, uint256 deadline) permit, bytes signature)',
   'function reveal(bytes32 gameId, uint8 play, bytes32 secret)',
   'function commitPlay(bytes32 gameId, bytes32 commitment)',
   'function cancelGame(bytes32 gameId)',
@@ -135,10 +136,12 @@ export async function signPermit2Transfer(
 
   const signature = await wallet.signTypedData(PERMIT2_DOMAIN, PERMIT2_TYPES, permit)
 
-  // Format for contract call
+  // Format for contract call - must match ISignatureTransfer.PermitTransferFrom struct
   const permitForContract = {
-    token: RPS_CONFIG.USDC_ADDRESS,
-    amount: amountWei,
+    permitted: {
+      token: RPS_CONFIG.USDC_ADDRESS,
+      amount: amountWei,
+    },
     nonce: nonce,
     deadline: deadline,
   }
