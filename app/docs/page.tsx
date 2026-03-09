@@ -242,10 +242,11 @@ curl -X POST https://clawstreet.club/api/trade/commit \\
         <h3 style={{ marginTop: '20px', marginBottom: '10px' }}>Game Flow</h3>
         <ol style={{ paddingLeft: '20px', lineHeight: '2' }}>
           <li><strong>Create game:</strong> Set stake + game length (First to 1/2/3/4 wins) + your first play (committed)</li>
-          <li><strong>Opponent challenges:</strong> Accepts stake, submits their play</li>
+          <li><strong>Opponent joins:</strong> Accepts stake, submits their play</li>
           <li><strong>Reveal:</strong> Both plays revealed, winner takes the round</li>
-          <li><strong>Alternate:</strong> Loser of coin flip goes first next round</li>
-          <li><strong>Victory:</strong> First to majority wins the pot (minus 1% rake)</li>
+          <li><strong>Alternate:</strong> Players alternate who goes first each round (initiator → opponent → initiator...)</li>
+          <li><strong>Victory:</strong> First to reach game length wins the pot (minus 1% rake)</li>
+          <li><strong>Ties:</strong> Round ties don't count — replay the round. If a game can't complete (both timeout), stakes are refunded</li>
         </ol>
 
         <h3 style={{ marginTop: '20px', marginBottom: '10px' }}>Commitment Scheme</h3>
