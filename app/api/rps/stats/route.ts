@@ -1,59 +1,49 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
+export const revalidate = 0
 
 export async function GET() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  
+  const headers = {
+    'apikey': key,
+    'Authorization': `Bearer ${key}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'count=exact'
+  }
+
   try {
-    const supabase = getSupabase()
+    // Get all completed games with count header
+    const completedRes = await fetch(
+      `${url}/rest/v1/rps_games_v2?status=eq.completed&select=id,stake_usdc,winner_id`,
+      { headers, cache: 'no-store' }
+    )
+    const completedGames = await completedRes.json()
+    const contentRange = completedRes.headers.get('content-range')
+    const totalGames = contentRange ? parseInt(contentRange.split('/')[1]) : completedGames?.length || 0
+    
+    // Count draws (completed with no winner)
+    const totalDraws = completedGames?.filter((g: any) => !g.winner_id).length || 0
+    
+    // Total wagered (stake * 2 for each completed game)
+    const totalWagered = completedGames?.reduce((sum: number, g: any) => sum + (g.stake_usdc * 2), 0) || 0
+    
+    // Biggest win (highest stake * 2 * 0.99)
+    const maxStake = Math.max(...(completedGames?.map((g: any) => g.stake_usdc) || [0]))
+    const biggestWin = maxStake * 2 * 0.99
 
-    // Total completed games
-    const { count: totalGames } = await supabase
-      .from('rps_games_v2')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'completed')
-
-    // Count draws (completed games with no winner)
-    const { count: totalDraws } = await supabase
-      .from('rps_games_v2')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'completed')
-      .is('winner_id', null)
-
-    // Total wagered (sum of stakes * 2 for completed games)
-    const { data: wagerData } = await supabase
-      .from('rps_games_v2')
-      .select('stake_usdc')
-      .eq('status', 'completed')
-
-    const totalWagered = wagerData?.reduce((sum, g) => sum + (g.stake_usdc * 2), 0) || 0
-
-    // Biggest win
-    const { data: bigWin } = await supabase
-      .from('rps_games_v2')
-      .select('stake_usdc')
-      .eq('status', 'completed')
-      .order('stake_usdc', { ascending: false })
-      .limit(1)
-      .single()
-
-    const biggestWin = bigWin ? (bigWin.stake_usdc * 2) * 0.99 : 0
-
-    // Active players (distinct creators/challengers in recent games)
-    const { data: recentGames } = await supabase
-      .from('rps_games_v2')
-      .select('creator_id, challenger_id')
-      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-
+    // Active players (distinct in last 7 days)
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const recentRes = await fetch(
+      `${url}/rest/v1/rps_games_v2?created_at=gte.${weekAgo}&select=creator_id,challenger_id`,
+      { headers: { ...headers, 'Prefer': '' }, cache: 'no-store' }
+    )
+    const recentGames = await recentRes.json()
+    
     const activePlayers = new Set<string>()
-    recentGames?.forEach(g => {
+    recentGames?.forEach((g: any) => {
       if (g.creator_id) activePlayers.add(g.creator_id)
       if (g.challenger_id) activePlayers.add(g.challenger_id)
     })
@@ -61,25 +51,25 @@ export async function GET() {
     // Games today
     const todayStart = new Date()
     todayStart.setUTCHours(0, 0, 0, 0)
-    
-    const { count: gamesToday } = await supabase
-      .from('rps_games_v2')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', todayStart.toISOString())
+    const todayRes = await fetch(
+      `${url}/rest/v1/rps_games_v2?created_at=gte.${todayStart.toISOString()}&select=id`,
+      { headers, cache: 'no-store' }
+    )
+    const todayRange = todayRes.headers.get('content-range')
+    const gamesToday = todayRange ? parseInt(todayRange.split('/')[1]) : 0
 
     // Average stake
-    const avgStake = totalGames && totalGames > 0 
-      ? totalWagered / (totalGames * 2) 
-      : 0
+    const avgStake = totalGames > 0 ? totalWagered / (totalGames * 2) : 0
 
     return NextResponse.json({
-      total_games: totalGames || 0,
-      total_draws: totalDraws || 0,
+      total_games: totalGames,
+      total_draws: totalDraws,
       total_wagered: totalWagered,
       biggest_win: biggestWin,
       active_players: activePlayers.size,
-      games_today: gamesToday || 0,
-      avg_stake: avgStake
+      games_today: gamesToday,
+      avg_stake: avgStake,
+      _ts: Date.now()
     })
   } catch (error: any) {
     console.error('Error fetching RPS stats:', error)

@@ -502,7 +502,8 @@ export default function RPSPage() {
                       <tr>
                         <th style={{ textAlign: 'left', padding: '8px' }}>Players</th>
                         <th style={{ textAlign: 'center' }}>Score</th>
-                        <th style={{ textAlign: 'right', padding: '8px' }}>Result</th>
+                        <th style={{ textAlign: 'center' }}>Result</th>
+                        <th style={{ textAlign: 'right', padding: '8px' }}>Time</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -532,8 +533,11 @@ export default function RPSPage() {
                           <td style={{ textAlign: 'center', fontWeight: 700 }}>
                             {game.creator_wins}-{game.challenger_wins}
                           </td>
-                          <td style={{ textAlign: 'right', padding: '8px', color: game.winner ? 'var(--green)' : 'var(--text-muted)' }}>
+                          <td style={{ textAlign: 'center', color: game.winner ? 'var(--green)' : 'var(--text-muted)' }}>
                             {game.winner ? `$${((game.stake_usdc * 2) * 0.99).toFixed(2)}` : 'DRAW'}
+                          </td>
+                          <td style={{ textAlign: 'right', padding: '8px', color: 'var(--text-muted)', fontSize: '11px' }}>
+                            {formatTimeAgo(game.completed_at || game.created_at)}
                           </td>
                         </tr>
                       ))}
