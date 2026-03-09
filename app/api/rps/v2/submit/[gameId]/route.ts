@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { RPS_CONFIG, verifyApiKey, getSupabaseAdmin, verifyCommitment, determineWinner, addToBalance, collectRake } from '@/app/lib/rps-utils'
+import { RPS_CONFIG, verifyApiKey, getSupabaseAdmin, verifyCommitment, determineWinner, addToBalance, collectRake, getAgentWalletKey } from '@/app/lib/rps-utils'
+import { getWallet, createOnchainGame, challengeOnchainGame, revealOnchainPlay, getUsdcBalance } from '@/app/lib/rps-onchain'
 
 export const dynamic = 'force-dynamic'
 
@@ -121,6 +122,70 @@ async function handleSubmit(
   
   if (otherHash) {
     // Both submitted - move to reveal phase
+    let onchainResult: any = null
+    
+    // On round 1, create the on-chain escrow game
+    if (game.current_round === 1 && !game.onchain_game_id) {
+      try {
+        const creatorName = (game.creator as any).name
+        const challengerName = (game.challenger as any).name
+        
+        const creatorKey = getAgentWalletKey(creatorName)
+        const challengerKey = getAgentWalletKey(challengerName)
+        
+        if (creatorKey && challengerKey) {
+          const creatorWallet = getWallet(creatorKey)
+          const challengerWallet = getWallet(challengerKey)
+          
+          // Check USDC balances
+          const creatorBalance = await getUsdcBalance(creatorWallet.address)
+          const challengerBalance = await getUsdcBalance(challengerWallet.address)
+          
+          if (creatorBalance >= game.stake_usdc && challengerBalance >= game.stake_usdc) {
+            // Get commitments (the hidden hashes already submitted)
+            const creatorCommitment = isCreator ? body.hidden_hash : game.creator_hidden_hash
+            const challengerCommitment = isCreator ? game.challenger_hidden_hash : body.hidden_hash
+            
+            // Create game on-chain with creator's stake + commitment
+            const { gameId: onchainGameId, txHash: createTxHash } = await createOnchainGame(
+              creatorWallet,
+              game.stake_usdc,
+              game.total_rounds as 1 | 3 | 5 | 7,  // bestOf
+              creatorCommitment
+            )
+            
+            // Challenger joins on-chain with their stake + commitment
+            const { txHash: challengeTxHash } = await challengeOnchainGame(
+              challengerWallet,
+              onchainGameId,
+              challengerCommitment,
+              game.stake_usdc
+            )
+            
+            // Store on-chain info (using existing columns)
+            await supabase.from('rps_games_v2').update({
+              onchain_game_id: onchainGameId,
+              onchain_tx: createTxHash,  // Primary tx
+              onchain: true,
+            }).eq('id', game.id)
+            
+            onchainResult = {
+              onchain_game_id: onchainGameId,
+              create_tx: createTxHash,
+              challenge_tx: challengeTxHash,
+              escrow_status: 'locked',
+            }
+          } else {
+            console.warn('Insufficient USDC for on-chain escrow:', { creatorBalance, challengerBalance, stake: game.stake_usdc })
+          }
+        } else {
+          console.warn('Missing wallet keys for on-chain:', { creatorName, challengerName })
+        }
+      } catch (onchainError: any) {
+        console.error('On-chain escrow failed (continuing off-chain):', onchainError.message)
+      }
+    }
+    
     await supabase.from('rps_games_v2').update({
       status: 'revealing',
       reveal_expires_at: new Date(Date.now() + RPS_CONFIG.ROUND_TIMEOUT_MS).toISOString(),
@@ -133,6 +198,7 @@ async function handleSubmit(
       your_exposed: body.exposed_play,
       opponent_exposed: isCreator ? game.challenger_exposed_play : game.creator_exposed_play,
       reveal_timeout_seconds: RPS_CONFIG.ROUND_TIMEOUT_MS / 1000,
+      onchain: onchainResult,
       next_action: {
         endpoint: `/api/rps/v2/submit/${game.id}`,
         body: { reveal_play: 'YOUR_ACTUAL_PLAY', reveal_secret: 'YOUR_SECRET' }
@@ -188,6 +254,28 @@ async function handleReveal(
   const exposedPlay = isCreator ? game.creator_exposed_play : game.challenger_exposed_play
   const wasBluff = exposedPlay !== body.reveal_play
   updates[isCreator ? 'creator_bluffed' : 'challenger_bluffed'] = wasBluff
+
+  // On-chain reveal if game is on-chain
+  if (game.onchain_game_id) {
+    try {
+      const agentName = agent.name
+      const walletKey = getAgentWalletKey(agentName)
+      
+      if (walletKey) {
+        const wallet = getWallet(walletKey)
+        const { txHash } = await revealOnchainPlay(
+          wallet,
+          game.onchain_game_id,
+          body.reveal_play as 'ROCK' | 'PAPER' | 'SCISSORS',
+          body.reveal_secret
+        )
+        console.log(`On-chain reveal tx: ${txHash}`)
+      }
+    } catch (onchainError: any) {
+      console.error('On-chain reveal failed:', onchainError.message)
+      // Continue with off-chain - log the failure but don't block
+    }
+  }
 
   await supabase.from('rps_games_v2').update(updates).eq('id', game.id)
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { RPS_CONFIG, verifyApiKey, getSupabaseAdmin, deductFromBalance } from '@/app/lib/rps-utils'
+import { RPS_CONFIG, verifyApiKey, getSupabaseAdmin } from '@/app/lib/rps-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,24 +49,9 @@ export async function POST(
       return NextResponse.json({ error: `Game is ${game.status}, not pending_approval` }, { status: 400 })
     }
 
-    // Deduct stakes from both players (USDC via on-chain escrow - TODO)
+    // Stakes are escrowed on-chain when both players submit round 1 plays
+    // (see submit route - createOnchainGame + challengeOnchainGame)
     const stakeLobs = game.stake_usdc * 1000
-
-    const creatorBalance = (game.creator as any).cash_balance
-    const challengerBalance = (game.challenger as any).cash_balance
-
-    if (creatorBalance < stakeLobs || challengerBalance < stakeLobs) {
-      return NextResponse.json({ error: 'Insufficient balance for one or both players' }, { status: 400 })
-    }
-
-    // Deduct from both
-    await supabase.from('agents').update({ 
-      cash_balance: creatorBalance - stakeLobs 
-    }).eq('id', game.creator_id)
-    
-    await supabase.from('agents').update({ 
-      cash_balance: challengerBalance - stakeLobs 
-    }).eq('id', game.challenger_id)
 
     // Start game - round 1
     const now = new Date()
