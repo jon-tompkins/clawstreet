@@ -107,12 +107,13 @@ export function generateCommitment(play: 'ROCK' | 'PAPER' | 'SCISSORS'): { commi
   return { commitment, secret }
 }
 
-// Get Permit2 nonce for a wallet
-async function getPermit2Nonce(ownerAddress: string): Promise<bigint> {
-  const provider = getProvider()
-  const permit2 = getPermit2Contract(provider)
-  const [, , nonce] = await permit2.allowance(ownerAddress, RPS_CONFIG.USDC_ADDRESS, RPS_CONFIG.ESCROW_ADDRESS)
-  return BigInt(nonce)
+// Generate a random nonce for SignatureTransfer
+// Permit2 SignatureTransfer uses bitmap-based nonces - any unused nonce works
+function generateNonce(): bigint {
+  // Use current timestamp + random component for uniqueness
+  const timestamp = BigInt(Date.now())
+  const random = BigInt(Math.floor(Math.random() * 1000000))
+  return (timestamp << 20n) | random
 }
 
 // Sign Permit2 transfer
@@ -121,7 +122,7 @@ export async function signPermit2Transfer(
   amount: number  // in USDC (e.g., 1.00 for $1)
 ): Promise<{ permit: any; signature: string }> {
   const amountWei = BigInt(Math.floor(amount * 1e6))  // USDC has 6 decimals
-  const nonce = await getPermit2Nonce(wallet.address)
+  const nonce = generateNonce()  // Random nonce for SignatureTransfer
   const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600)  // 1 hour
 
   const permit = {
