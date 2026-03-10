@@ -15,15 +15,24 @@ const ESCROW_ABI = [
   'event GameComplete(bytes32 indexed gameId, address indexed winner, uint256 payout, uint256 rake)',
   'event GameCancelled(bytes32 indexed gameId, address indexed by)',
   'function getGame(bytes32) view returns (tuple(address creator, address challenger, uint96 stake, uint8 bestOf, uint8 status, address winner, uint8 creatorWins, uint8 challengerWins, uint40 createdAt, uint40 challengedAt, bytes32 currentCommitment, bool creatorTurn))',
+  'function getRound(bytes32 gameId, uint8 roundNum) view returns (tuple(bytes32 creatorCommit, bytes32 challengerCommit, uint8 creatorPlay, uint8 challengerPlay, address winner, bool revealed))',
+  'function getCurrentRound(bytes32 gameId) view returns (uint8)',
   'function totalVolume() view returns (uint256)',
   'function totalRakeCollected() view returns (uint256)',
 ]
 
-const PLAY_NAMES: Record<number, string> = {
+const PLAY_EMOJI: Record<number, string> = {
   0: '❓',
-  1: '🪨 Rock',
-  2: '📄 Paper', 
-  3: '✂️ Scissors',
+  1: '🪨',
+  2: '📄', 
+  3: '✂️',
+}
+
+const PLAY_NAMES: Record<number, string> = {
+  0: 'None',
+  1: 'Rock',
+  2: 'Paper', 
+  3: 'Scissors',
 }
 
 const STATUS_NAMES: Record<number, string> = {
@@ -47,6 +56,18 @@ function shortenAddress(addr: string): string {
   return KNOWN_AGENTS[lower] || `${addr.slice(0, 6)}...${addr.slice(-4)}`
 }
 
+function getFirstTo(bestOf: number): number {
+  return Math.floor(bestOf / 2) + 1
+}
+
+interface RoundData {
+  roundNum: number
+  creatorPlay: number
+  challengerPlay: number
+  winner: string
+  revealed: boolean
+}
+
 interface GameData {
   gameId: string
   creator: string
@@ -58,17 +79,13 @@ interface GameData {
   creatorWins: number
   challengerWins: number
   createdAt: number
-  plays: { round: number; player: string; play: number }[]
+  rounds: RoundData[]
 }
 
 export default function RPSExplorer() {
   const [games, setGames] = useState<GameData[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ volume: 0n, rake: 0n, gameCount: 0 })
-
-  useEffect(() => {
-    loadGames()
-  }, [])
 
   // Known game IDs (populated from TX logs, fallback for RPC indexing issues)
   const KNOWN_GAME_IDS = [
@@ -77,6 +94,10 @@ export default function RPSExplorer() {
     '0x1e4d761e527df8f1f8e177b3c9bbd3cd7f4e89eed0f89c148882dde681d04876',
     '0x2e76cf004d97f892df775a2d54cb38323b2866d441abc94d321bccb9b650cfe6',
   ]
+
+  useEffect(() => {
+    loadGames()
+  }, [])
 
   async function loadGames() {
     try {
@@ -91,18 +112,18 @@ export default function RPSExplorer() {
 
       const gameMap = new Map<string, GameData>()
 
-      // First try events (may fail on some RPCs)
+      // Try events first (may fail on some RPCs)
       try {
         const filter = contract.filters.GameCreated()
         const currentBlock = await provider.getBlockNumber()
-        const fromBlock = Math.max(0, currentBlock - 5000) // ~25 min
+        const fromBlock = Math.max(0, currentBlock - 5000)
         const events = await contract.queryFilter(filter, fromBlock)
 
         for (const event of events) {
           const args = (event as ethers.EventLog).args
           const gameId = args[0]
-          if (!gameMap.has(gameId)) {
-            KNOWN_GAME_IDS.push(gameId) // Add to known list
+          if (!KNOWN_GAME_IDS.includes(gameId)) {
+            KNOWN_GAME_IDS.push(gameId)
           }
         }
       } catch (err) {
@@ -114,6 +135,27 @@ export default function RPSExplorer() {
         try {
           const game = await contract.getGame(gameId)
           if (game.creator !== '0x0000000000000000000000000000000000000000') {
+            // Get round data
+            const rounds: RoundData[] = []
+            const totalRounds = game.creatorWins + game.challengerWins
+            
+            for (let i = 1; i <= Math.max(totalRounds, 1); i++) {
+              try {
+                const round = await contract.getRound(gameId, i)
+                if (round.revealed || round.creatorPlay > 0 || round.challengerPlay > 0) {
+                  rounds.push({
+                    roundNum: i,
+                    creatorPlay: round.creatorPlay,
+                    challengerPlay: round.challengerPlay,
+                    winner: round.winner,
+                    revealed: round.revealed,
+                  })
+                }
+              } catch (e) {
+                // Round doesn't exist
+              }
+            }
+
             gameMap.set(gameId, {
               gameId,
               creator: game.creator,
@@ -125,34 +167,12 @@ export default function RPSExplorer() {
               creatorWins: game.creatorWins,
               challengerWins: game.challengerWins,
               createdAt: Number(game.createdAt),
-              plays: [],
+              rounds,
             })
           }
         } catch (err) {
           console.log('Failed to load game:', gameId)
         }
-      }
-
-      // Try to get revealed plays
-      try {
-        const revealFilter = contract.filters.PlayRevealed()
-        const currentBlock = await provider.getBlockNumber()
-        const revealEvents = await contract.queryFilter(revealFilter, currentBlock - 5000)
-        
-        for (const event of revealEvents) {
-          const args = (event as ethers.EventLog).args
-          const gameId = args[0]
-          const gameData = gameMap.get(gameId)
-          if (gameData) {
-            gameData.plays.push({
-              round: args[1],
-              player: args[2],
-              play: args[3],
-            })
-          }
-        }
-      } catch (err) {
-        console.log('Play events query failed')
       }
 
       const gamesArray = Array.from(gameMap.values())
@@ -236,66 +256,72 @@ export default function RPSExplorer() {
 function GameCard({ game }: { game: GameData }) {
   const stakeUSD = Number(game.stake) / 1e6
   const hasChallenger = game.challenger !== '0x0000000000000000000000000000000000000000'
+  const firstTo = getFirstTo(game.bestOf)
   
-  // Group plays by player
-  const creatorPlays = game.plays.filter(p => p.player.toLowerCase() === game.creator.toLowerCase())
-  const challengerPlays = game.plays.filter(p => p.player.toLowerCase() === game.challenger.toLowerCase())
+  const isCreatorWinner = game.winner.toLowerCase() === game.creator.toLowerCase()
+  const isChallengerWinner = game.winner.toLowerCase() === game.challenger.toLowerCase()
 
   return (
     <div className="bg-gray-800 rounded-lg p-4">
+      {/* Header */}
       <div className="flex justify-between items-start mb-3">
         <div>
           <span className="text-lg font-bold">${stakeUSD.toFixed(2)}</span>
-          <span className="text-gray-400 ml-2">Best of {game.bestOf}</span>
+          <span className="text-gray-400 ml-2">
+            First to {firstTo} {game.bestOf > 1 && `(Best of ${game.bestOf})`}
+          </span>
         </div>
         <span className="text-sm">{STATUS_NAMES[game.status]}</span>
       </div>
 
+      {/* Players */}
       <div className="grid grid-cols-2 gap-4 mb-3">
         {/* Creator */}
-        <div className={`p-3 rounded ${game.status === 2 && game.winner.toLowerCase() === game.creator.toLowerCase() ? 'bg-green-900/30 border border-green-500' : 'bg-gray-700/50'}`}>
+        <div className={`p-3 rounded ${isCreatorWinner ? 'bg-green-900/30 border border-green-500' : 'bg-gray-700/50'}`}>
           <div className="text-sm text-gray-400">Creator</div>
-          <div className="font-medium">{shortenAddress(game.creator)}</div>
-          <div className="text-sm mt-1">
-            Wins: {game.creatorWins}
-            {creatorPlays.length > 0 && (
-              <span className="ml-2">
-                {creatorPlays.map((p, i) => (
-                  <span key={i} className="mr-1">{PLAY_NAMES[p.play]?.split(' ')[0]}</span>
-                ))}
-              </span>
-            )}
+          <div className="font-medium flex items-center gap-2">
+            {shortenAddress(game.creator)}
+            {isCreatorWinner && <span>🏆</span>}
+          </div>
+          <div className="text-xl mt-1">
+            <span className="text-green-400">{game.creatorWins}</span>
+            <span className="text-gray-500"> wins</span>
           </div>
         </div>
 
         {/* Challenger */}
-        <div className={`p-3 rounded ${game.status === 2 && game.winner.toLowerCase() === game.challenger.toLowerCase() ? 'bg-green-900/30 border border-green-500' : 'bg-gray-700/50'}`}>
+        <div className={`p-3 rounded ${isChallengerWinner ? 'bg-green-900/30 border border-green-500' : 'bg-gray-700/50'}`}>
           <div className="text-sm text-gray-400">Challenger</div>
-          <div className="font-medium">
+          <div className="font-medium flex items-center gap-2">
             {hasChallenger ? shortenAddress(game.challenger) : '—'}
+            {isChallengerWinner && <span>🏆</span>}
           </div>
-          <div className="text-sm mt-1">
-            Wins: {game.challengerWins}
-            {challengerPlays.length > 0 && (
-              <span className="ml-2">
-                {challengerPlays.map((p, i) => (
-                  <span key={i} className="mr-1">{PLAY_NAMES[p.play]?.split(' ')[0]}</span>
-                ))}
-              </span>
-            )}
+          <div className="text-xl mt-1">
+            <span className="text-green-400">{game.challengerWins}</span>
+            <span className="text-gray-500"> wins</span>
           </div>
         </div>
       </div>
 
-      {/* Winner */}
-      {game.status === 2 && game.winner !== '0x0000000000000000000000000000000000000000' && (
-        <div className="text-center py-2 bg-green-900/20 rounded text-green-400">
-          🏆 Winner: {shortenAddress(game.winner)}
+      {/* Rounds */}
+      {game.rounds.length > 0 && (
+        <div className="bg-gray-900/50 rounded p-3 mb-3">
+          <div className="text-sm text-gray-400 mb-2">Rounds</div>
+          <div className="space-y-2">
+            {game.rounds.map((round) => (
+              <RoundRow 
+                key={round.roundNum} 
+                round={round} 
+                creatorAddr={game.creator}
+                challengerAddr={game.challenger}
+              />
+            ))}
+          </div>
         </div>
       )}
 
       {/* Game ID */}
-      <div className="mt-3 pt-3 border-t border-gray-700">
+      <div className="pt-3 border-t border-gray-700 flex justify-between items-center">
         <a
           href={`https://basescan.org/address/${ESCROW}#events`}
           target="_blank"
@@ -304,10 +330,46 @@ function GameCard({ game }: { game: GameData }) {
         >
           {game.gameId.slice(0, 18)}...
         </a>
-        <span className="text-xs text-gray-600 ml-2">
+        <span className="text-xs text-gray-600">
           {new Date(game.createdAt * 1000).toLocaleString()}
         </span>
       </div>
+    </div>
+  )
+}
+
+function RoundRow({ round, creatorAddr, challengerAddr }: { 
+  round: RoundData
+  creatorAddr: string
+  challengerAddr: string 
+}) {
+  const creatorWon = round.winner.toLowerCase() === creatorAddr.toLowerCase()
+  const challengerWon = round.winner.toLowerCase() === challengerAddr.toLowerCase()
+  const isTie = round.winner === '0x0000000000000000000000000000000000000000' && round.revealed
+  
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-gray-500 w-16">Round {round.roundNum}</span>
+      <div className="flex items-center gap-4 flex-1 justify-center">
+        <span className={`text-xl ${creatorWon ? 'ring-2 ring-green-500 rounded px-1' : ''}`}>
+          {PLAY_EMOJI[round.creatorPlay]}
+        </span>
+        <span className="text-gray-600">vs</span>
+        <span className={`text-xl ${challengerWon ? 'ring-2 ring-green-500 rounded px-1' : ''}`}>
+          {PLAY_EMOJI[round.challengerPlay]}
+        </span>
+      </div>
+      <span className="w-24 text-right">
+        {isTie ? (
+          <span className="text-yellow-400">Tie</span>
+        ) : creatorWon ? (
+          <span className="text-green-400">← Creator</span>
+        ) : challengerWon ? (
+          <span className="text-green-400">Challenger →</span>
+        ) : (
+          <span className="text-gray-500">—</span>
+        )}
+      </span>
     </div>
   )
 }
