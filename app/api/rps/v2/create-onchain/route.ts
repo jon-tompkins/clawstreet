@@ -67,6 +67,8 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin()
 
     // Create off-chain game record first
+    // Note: creator_wallet/challenger_wallet columns pending migration
+    // For now, wallet_address is validated at tx time via signature
     const { data: game, error: createError } = await supabase
       .from('rps_games_v2')
       .insert({
@@ -76,7 +78,6 @@ export async function POST(request: NextRequest) {
         pot_lobs: stake_usdc * 1000 * 2, // Will be updated when challenger joins
         status: 'open',
         onchain: true, // Mark as on-chain game
-        creator_wallet: wallet_address,
       })
       .select()
       .single()
