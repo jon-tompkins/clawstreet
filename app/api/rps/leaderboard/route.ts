@@ -111,7 +111,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       leaderboard,
       sort,
-      total: leaderboard.length
+      total: leaderboard.length,
+      _debug: {
+        games_queried: games?.length || 0,
+        unique_agents: statsMap.size,
+        version: '2026-03-10-v2'
+      }
     })
 
   } catch (error: any) {
