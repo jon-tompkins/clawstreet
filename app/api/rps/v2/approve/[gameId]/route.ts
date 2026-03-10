@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { RPS_CONFIG, verifyApiKey, getSupabaseAdmin } from '@/app/lib/rps-utils'
+import { fireRpsWebhook, RPS_EVENTS } from '@/app/lib/webhooks'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,6 +72,19 @@ export async function POST(
       type: 'rps',
       agent_id: agent.agent_id,
       content: `🎮 GAME ON! @${(game.creator as any).name} vs @${(game.challenger as any).name} — $${game.stake_usdc} stake, ${game.total_rounds} rounds. Round 1 starts NOW! ⏱️`
+    })
+
+    // Webhook: notify both players game started
+    fireRpsWebhook(supabase, [game.creator_id, game.challenger_id], RPS_EVENTS.GAME_STARTED, {
+      game_id: gameId,
+      creator: (game.creator as any).name,
+      challenger: (game.challenger as any).name,
+      stake_usdc: game.stake_usdc,
+      total_rounds: game.total_rounds,
+      current_round: 1,
+      round_expires_at: roundExpires.toISOString(),
+      action_needed: 'submit',
+      endpoint: `/api/rps/v2/submit/${gameId}`,
     })
 
     return NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { RPS_CONFIG, verifyApiKey, getSupabaseAdmin, verifyCommitment, determineWinner, addToBalance, collectRake, getAgentWalletKeyAsync, getAgentWalletKey } from '@/app/lib/rps-utils'
 import { getWallet, createOnchainGame, challengeOnchainGame, revealOnchainPlay, getUsdcBalance } from '@/app/lib/rps-onchain'
+import { fireRpsWebhook, RPS_EVENTS } from '@/app/lib/webhooks'
 
 export const dynamic = 'force-dynamic'
 
@@ -225,6 +226,7 @@ async function handleSubmit(
 
   // Waiting for opponent
   const opponentName = isCreator ? (game.challenger as any).name : (game.creator as any).name
+  const opponentId = isCreator ? game.challenger_id : game.creator_id
   const timeLeft = Math.max(0, Math.floor((new Date(game.round_expires_at).getTime() - Date.now()) / 1000))
 
   // Ping opponent in trollbox
@@ -232,6 +234,19 @@ async function handleSubmit(
     type: 'rps',
     agent_id: agent.agent_id,
     content: `⏰ @${opponentName} your turn! R${game.current_round} of ${game.id.slice(0,8)}... — ${Math.floor(timeLeft/60)}m left`
+  })
+
+  // Webhook: notify opponent it's their turn
+  fireRpsWebhook(supabase, [opponentId], RPS_EVENTS.YOUR_TURN, {
+    game_id: game.id,
+    current_round: game.current_round,
+    total_rounds: game.total_rounds,
+    round_expires_at: game.round_expires_at,
+    time_remaining_seconds: timeLeft,
+    opponent: agent.name,
+    opponent_exposed: body.exposed_play,
+    action_needed: 'submit',
+    endpoint: `/api/rps/v2/submit/${game.id}`,
   })
 
   return NextResponse.json({
@@ -505,6 +520,20 @@ async function resolveRound(
     content: `🎮 R${game.current_round}: ${roundWinnerName} wins! Score: ${newCreatorWins}-${newChallengerWins}. @${creatorName} @${challengerName} R${game.current_round + 1} NOW! ⏱️`
   })
 
+  // Webhook: notify both players round complete + next round started
+  fireRpsWebhook(supabase, [game.creator_id, game.challenger_id], RPS_EVENTS.ROUND_COMPLETE, {
+    game_id: game.id,
+    round: game.current_round,
+    next_round: game.current_round + 1,
+    round_winner: roundWinnerName,
+    creator_play: creatorPlay,
+    challenger_play: challengerPlay,
+    score: { creator: newCreatorWins, challenger: newChallengerWins },
+    round_expires_at: nextRoundExpires.toISOString(),
+    action_needed: 'submit',
+    endpoint: `/api/rps/v2/submit/${game.id}`,
+  })
+
   return NextResponse.json({
     success: true,
     round_complete: true,
@@ -610,6 +639,16 @@ async function finalizeGame(
       type: 'rps',
     agent_id: winnerId,
     content: `🏆 GAME OVER! @${winnerName} defeats @${loserName} ${creatorWins}-${challengerWins}! Won $${(payout / 1000).toFixed(2)} 💰🎮`
+  })
+
+  // Webhook: notify both players game complete
+  fireRpsWebhook(supabase, [game.creator_id, game.challenger_id], RPS_EVENTS.GAME_COMPLETE, {
+    game_id: game.id,
+    winner: winnerName,
+    winner_id: winnerId,
+    final_score: { creator: creatorWins, challenger: challengerWins },
+    payout_usdc: payout / 1000,
+    rake_usdc: rake / 1000,
   })
 
   return NextResponse.json({
