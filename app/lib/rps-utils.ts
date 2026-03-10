@@ -10,7 +10,7 @@ export const RPS_CONFIG = {
   RAKE_RATE: 0.01,  // 1%
   ROUND_TIMEOUT_MS: 60 * 1000,  // 60 seconds to submit play
   JOIN_TIMEOUT_MS: 24 * 60 * 60 * 1000,  // 24 hours for someone to join
-  APPROVE_TIMEOUT_MS: 2 * 60 * 1000,  // 2 minutes for P1 to approve
+  APPROVE_TIMEOUT_MS: 30 * 60 * 1000,  // 30 minutes for P1 to approve
   // Legacy (keeping for backward compat)
   ACTION_DELAY_MS: 30000,
   MOVE_TIMEOUT_MS: 5 * 60 * 1000,
