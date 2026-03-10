@@ -73,6 +73,9 @@ export default function RPSExplorer() {
   // Known game IDs (populated from TX logs, fallback for RPC indexing issues)
   const KNOWN_GAME_IDS = [
     '0x795894cccd79ad58152bbb3b19c6337941686d34ef032f0e3db80b5f3a9df5ee',
+    '0xe7195866c24a5d00aba1cab02e89ef1b86b35e71569dc48997a0c35c3dafbf7f',
+    '0x1e4d761e527df8f1f8e177b3c9bbd3cd7f4e89eed0f89c148882dde681d04876',
+    '0x2e76cf004d97f892df775a2d54cb38323b2866d441abc94d321bccb9b650cfe6',
   ]
 
   async function loadGames() {

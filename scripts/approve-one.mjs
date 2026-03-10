@@ -1,0 +1,10 @@
+import { ethers } from 'ethers';
+const USDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+const PERMIT2 = '0x000000000022D473030F116dDEE9F6B43aC78BA3';
+const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
+const wallet = new ethers.Wallet(process.argv[2].trim(), provider);
+const usdc = new ethers.Contract(USDC, ['function approve(address,uint256) returns (bool)'], wallet);
+console.log(`Approving for ${wallet.address}...`);
+const tx = await usdc.approve(PERMIT2, ethers.MaxUint256);
+await tx.wait();
+console.log('✅ Approved');
