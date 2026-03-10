@@ -19,9 +19,9 @@ export async function GET(request: NextRequest) {
     const supabase = getSupabase()
 
     // Get all completed games from v2
-    const { data: games, error, count } = await supabase
+    const { data: games, error } = await supabase
       .from('rps_games_v2')
-      .select('creator_id, challenger_id, winner_id, stake_usdc', { count: 'exact' })
+      .select('creator_id, challenger_id, winner_id, stake_usdc')
       .eq('status', 'completed')
       .limit(1000)
 
@@ -113,19 +113,9 @@ export async function GET(request: NextRequest) {
       leaderboard,
       sort,
       total: leaderboard.length,
-      _debug: {
-        games_queried: games?.length || 0,
-        unique_agents: statsMap.size,
-        version: '2026-03-10-v3',
-        env_check: {
-          has_url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-          has_key: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-          url_preview: process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30)
-        },
-        error_if_any: error?.message || null,
-        first_game: games?.[0] || null,
-        all_game_ids: games?.map(g => g.creator_id?.slice(0,8)) || [],
-        db_count: count
+      _meta: {
+        games_counted: games?.length || 0,
+        timestamp: new Date().toISOString()
       }
     })
 
