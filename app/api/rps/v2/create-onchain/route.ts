@@ -54,9 +54,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validate best_of
-    if (![1, 3, 5, 7].includes(best_of)) {
-      return NextResponse.json({ error: 'best_of must be 1, 3, 5, or 7' }, { status: 400 })
+    // Validate best_of (DB constraint: 3, 5, or 7)
+    if (![3, 5, 7].includes(best_of)) {
+      return NextResponse.json({ error: 'best_of must be 3, 5, or 7' }, { status: 400 })
     }
 
     // Validate commitment format
