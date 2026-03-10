@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/record-history?secret=clawstreet-cron-2026",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/rps-timeout-v2?secret=clawstreet-cron-2026",
+      "schedule": "*/2 * * * *"
     }
   ]
 }
