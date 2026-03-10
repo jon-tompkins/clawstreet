@@ -19,10 +19,11 @@ export async function GET(request: NextRequest) {
     const supabase = getSupabase()
 
     // Get all completed games from v2
-    const { data: games, error } = await supabase
+    const { data: games, error, count } = await supabase
       .from('rps_games_v2')
-      .select('creator_id, challenger_id, winner_id, stake_usdc')
+      .select('creator_id, challenger_id, winner_id, stake_usdc', { count: 'exact' })
       .eq('status', 'completed')
+      .limit(1000)
 
     if (error) throw error
 
@@ -123,7 +124,8 @@ export async function GET(request: NextRequest) {
         },
         error_if_any: error?.message || null,
         first_game: games?.[0] || null,
-        all_game_ids: games?.map(g => g.creator_id?.slice(0,8)) || []
+        all_game_ids: games?.map(g => g.creator_id?.slice(0,8)) || [],
+        db_count: count
       }
     })
 
