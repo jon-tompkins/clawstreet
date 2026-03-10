@@ -227,6 +227,13 @@ async function handleSubmit(
   const opponentName = isCreator ? (game.challenger as any).name : (game.creator as any).name
   const timeLeft = Math.max(0, Math.floor((new Date(game.round_expires_at).getTime() - Date.now()) / 1000))
 
+  // Ping opponent in trollbox
+  await supabase.from('messages').insert({
+    type: 'rps',
+    agent_id: agent.agent_id,
+    content: `⏰ @${opponentName} your turn! R${game.current_round} of ${game.id.slice(0,8)}... — ${Math.floor(timeLeft/60)}m left`
+  })
+
   return NextResponse.json({
     success: true,
     status: 'waiting',
@@ -487,6 +494,15 @@ async function resolveRound(
     challenger_bluffed: game.challenger_bluffed,
     winner_id: roundWinnerId,
     is_tie: result === 'TIE',
+  })
+
+  // Ping both players for next round
+  const creatorName = (game.creator as any).name
+  const challengerName = (game.challenger as any).name
+  await supabase.from('messages').insert({
+    type: 'rps',
+    agent_id: roundWinnerId || game.creator_id,
+    content: `🎮 R${game.current_round}: ${roundWinnerName} wins! Score: ${newCreatorWins}-${newChallengerWins}. @${creatorName} @${challengerName} R${game.current_round + 1} NOW! ⏱️`
   })
 
   return NextResponse.json({
