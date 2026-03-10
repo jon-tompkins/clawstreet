@@ -70,6 +70,11 @@ export default function RPSExplorer() {
     loadGames()
   }, [])
 
+  // Known game IDs (populated from TX logs, fallback for RPC indexing issues)
+  const KNOWN_GAME_IDS = [
+    '0x795894cccd79ad58152bbb3b19c6337941686d34ef032f0e3db80b5f3a9df5ee',
+  ]
+
   async function loadGames() {
     try {
       const provider = new ethers.JsonRpcProvider(RPC)
@@ -81,49 +86,70 @@ export default function RPSExplorer() {
         contract.totalRakeCollected(),
       ])
 
-      // Get GameCreated events (last 1000 blocks ~30 min on Base)
-      const filter = contract.filters.GameCreated()
-      const fromBlock = await provider.getBlockNumber() - 10000 // ~5 hours
-      const events = await contract.queryFilter(filter, fromBlock)
-
       const gameMap = new Map<string, GameData>()
 
-      // Process created games
-      for (const event of events) {
-        const args = (event as ethers.EventLog).args
-        const gameId = args[0]
-        const game = await contract.getGame(gameId)
-        
-        gameMap.set(gameId, {
-          gameId,
-          creator: game.creator,
-          challenger: game.challenger,
-          stake: game.stake,
-          bestOf: game.bestOf,
-          status: game.status,
-          winner: game.winner,
-          creatorWins: game.creatorWins,
-          challengerWins: game.challengerWins,
-          createdAt: Number(game.createdAt),
-          plays: [],
-        })
+      // First try events (may fail on some RPCs)
+      try {
+        const filter = contract.filters.GameCreated()
+        const currentBlock = await provider.getBlockNumber()
+        const fromBlock = Math.max(0, currentBlock - 5000) // ~25 min
+        const events = await contract.queryFilter(filter, fromBlock)
+
+        for (const event of events) {
+          const args = (event as ethers.EventLog).args
+          const gameId = args[0]
+          if (!gameMap.has(gameId)) {
+            KNOWN_GAME_IDS.push(gameId) // Add to known list
+          }
+        }
+      } catch (err) {
+        console.log('Event query failed, using known games')
       }
 
-      // Get revealed plays
-      const revealFilter = contract.filters.PlayRevealed()
-      const revealEvents = await contract.queryFilter(revealFilter, fromBlock)
-      
-      for (const event of revealEvents) {
-        const args = (event as ethers.EventLog).args
-        const gameId = args[0]
-        const gameData = gameMap.get(gameId)
-        if (gameData) {
-          gameData.plays.push({
-            round: args[1],
-            player: args[2],
-            play: args[3],
-          })
+      // Load all known games directly
+      for (const gameId of KNOWN_GAME_IDS) {
+        try {
+          const game = await contract.getGame(gameId)
+          if (game.creator !== '0x0000000000000000000000000000000000000000') {
+            gameMap.set(gameId, {
+              gameId,
+              creator: game.creator,
+              challenger: game.challenger,
+              stake: game.stake,
+              bestOf: game.bestOf,
+              status: game.status,
+              winner: game.winner,
+              creatorWins: game.creatorWins,
+              challengerWins: game.challengerWins,
+              createdAt: Number(game.createdAt),
+              plays: [],
+            })
+          }
+        } catch (err) {
+          console.log('Failed to load game:', gameId)
         }
+      }
+
+      // Try to get revealed plays
+      try {
+        const revealFilter = contract.filters.PlayRevealed()
+        const currentBlock = await provider.getBlockNumber()
+        const revealEvents = await contract.queryFilter(revealFilter, currentBlock - 5000)
+        
+        for (const event of revealEvents) {
+          const args = (event as ethers.EventLog).args
+          const gameId = args[0]
+          const gameData = gameMap.get(gameId)
+          if (gameData) {
+            gameData.plays.push({
+              round: args[1],
+              player: args[2],
+              play: args[3],
+            })
+          }
+        }
+      } catch (err) {
+        console.log('Play events query failed')
       }
 
       const gamesArray = Array.from(gameMap.values())
