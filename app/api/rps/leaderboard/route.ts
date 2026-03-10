@@ -122,7 +122,8 @@ export async function GET(request: NextRequest) {
           url_preview: process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30)
         },
         error_if_any: error?.message || null,
-        first_game: games?.[0] || null
+        first_game: games?.[0] || null,
+        all_game_ids: games?.map(g => g.creator_id?.slice(0,8)) || []
       }
     })
 
