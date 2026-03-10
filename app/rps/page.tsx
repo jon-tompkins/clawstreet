@@ -536,8 +536,19 @@ export default function RPSPage() {
                       <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                         vs <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{game.creator.name}</span>
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>
                         First to {getWinsNeeded(game.total_rounds)} • {formatTimeAgo(game.created_at)}
+                      </div>
+                      <div style={{ 
+                        fontSize: '9px', 
+                        color: 'var(--text-muted)', 
+                        fontFamily: 'monospace',
+                        background: 'var(--bg-secondary)',
+                        padding: '4px 6px',
+                        borderRadius: '2px',
+                        wordBreak: 'break-all'
+                      }}>
+                        ID: {game.id}
                       </div>
                     </div>
                   ))}
