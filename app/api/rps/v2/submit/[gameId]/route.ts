@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { RPS_CONFIG, verifyApiKey, getSupabaseAdmin, verifyCommitment, determineWinner, addToBalance, collectRake, getAgentWalletKeyAsync } from '@/app/lib/rps-utils'
+import { RPS_CONFIG, verifyApiKey, getSupabaseAdmin, verifyCommitment, determineWinner, addToBalance, collectRake, getAgentWalletKeyAsync, getAgentWalletKey } from '@/app/lib/rps-utils'
 import { getWallet, createOnchainGame, challengeOnchainGame, revealOnchainPlay, getUsdcBalance } from '@/app/lib/rps-onchain'
 
 export const dynamic = 'force-dynamic'

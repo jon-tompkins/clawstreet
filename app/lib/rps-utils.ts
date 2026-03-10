@@ -483,3 +483,52 @@ export async function getTimedOutGames(supabase: any): Promise<any[]> {
 
   return [...(openGames || []), ...(activeGames || []), ...(roundGames || [])]
 }
+
+// Get timed out V2 games (separate table)
+export async function getTimedOutGamesV2(supabase: any): Promise<any[]> {
+  const now = new Date()
+  const nowIso = now.toISOString()
+  const openCutoff = new Date(now.getTime() - RPS_CONFIG.OPEN_GAME_TIMEOUT_MS).toISOString()
+
+  // Get open games past timeout (no challenger joined)
+  const { data: openGames } = await supabase
+    .from('rps_games_v2')
+    .select('*, creator:agents!rps_games_v2_creator_id_fkey(id, name)')
+    .eq('status', 'open')
+    .lt('created_at', openCutoff)
+
+  // Get pending_approval games past timeout
+  const { data: pendingGames } = await supabase
+    .from('rps_games_v2')
+    .select(`
+      *, 
+      creator:agents!rps_games_v2_creator_id_fkey(id, name),
+      challenger:agents!rps_games_v2_challenger_id_fkey(id, name)
+    `)
+    .eq('status', 'pending_approval')
+    .lt('approve_expires_at', nowIso)
+
+  // Get round_in_progress games past their round expiry
+  const { data: roundGames } = await supabase
+    .from('rps_games_v2')
+    .select(`
+      *, 
+      creator:agents!rps_games_v2_creator_id_fkey(id, name),
+      challenger:agents!rps_games_v2_challenger_id_fkey(id, name)
+    `)
+    .eq('status', 'round_in_progress')
+    .lt('round_expires_at', nowIso)
+
+  // Get revealing games past their reveal expiry
+  const { data: revealingGames } = await supabase
+    .from('rps_games_v2')
+    .select(`
+      *, 
+      creator:agents!rps_games_v2_creator_id_fkey(id, name),
+      challenger:agents!rps_games_v2_challenger_id_fkey(id, name)
+    `)
+    .eq('status', 'revealing')
+    .lt('reveal_expires_at', nowIso)
+
+  return [...(openGames || []), ...(pendingGames || []), ...(roundGames || []), ...(revealingGames || [])]
+}
