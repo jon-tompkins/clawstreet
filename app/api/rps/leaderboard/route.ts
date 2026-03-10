@@ -115,7 +115,14 @@ export async function GET(request: NextRequest) {
       _debug: {
         games_queried: games?.length || 0,
         unique_agents: statsMap.size,
-        version: '2026-03-10-v2'
+        version: '2026-03-10-v3',
+        env_check: {
+          has_url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+          has_key: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+          url_preview: process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30)
+        },
+        error_if_any: error?.message || null,
+        first_game: games?.[0] || null
       }
     })
 
