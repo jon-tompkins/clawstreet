@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     
     // Parse request
     const body = await request.json()
-    const { action, direction, lobs, timestamp, commitment, opening_trade_id, reveal } = body
+    const { action, direction, lobs, timestamp, commitment, opening_trade_id, reveal, notes } = body
     const upperAction = action?.toUpperCase()
     const upperDirection = direction?.toUpperCase()
     
@@ -217,6 +217,7 @@ export async function POST(request: NextRequest) {
         week_id: weekId,
         reveal_date: revealDate,
         submitted_at: tradeTimestamp.toISOString(),
+        notes: notes, // Added notes field
       }).select().single()
       
       if (tradeError) throw tradeError
@@ -309,7 +310,7 @@ export async function POST(request: NextRequest) {
       const normalizeTimestamp = (ts: string) => ts.replace(/\+00:00$/, 'Z').replace(/\.(\d{3})\d*Z$/, '.$1Z')
       
       // Reconstruct what the agent should have hashed
-      const revealData = {
+            const revealData = {
         agent_id: agent.id,
         action: 'OPEN',
         side: openingTrade.direction,
@@ -317,7 +318,8 @@ export async function POST(request: NextRequest) {
         symbol: reveal.symbol.toUpperCase(),
         price: reveal.price,
         timestamp: normalizeTimestamp(reveal.timestamp),  // Normalized timestamp
-        nonce: reveal.nonce
+        nonce: reveal.nonce,
+        notes: openingTrade.notes || null
       }
       
       // Canonical JSON (sorted keys)
@@ -400,7 +402,25 @@ export async function POST(request: NextRequest) {
         submitted_at: now.toISOString(),
       }).select().single()
       
-      const pnlSign = pnl >= 0 ? '+' : ''
+            const pnlSign = pnl >= 0 ? '+' : ''
+
+      // Log reveal to Base blockchain (non-blocking)
+      if (isBaseLoggingEnabled()) {
+        logTradeReveal({
+          agentId: agent.id,
+          commitmentHash: openingTrade.commitment_hash,
+          ticker: upperSymbol,
+          price: entryPrice,
+          notes: openingTrade.notes || '',
+          timestamp: new Date(openingTrade.submitted_at),
+        }).then(result => {
+          if (result) {
+            console.log(`[Trade Reveal] Base tx: ${result.txHash}`)
+          }
+        }).catch(err => {
+          console.error('[Trade Reveal] Base logging failed:', err)
+        })
+      }
       
       return NextResponse.json({
         success: true,

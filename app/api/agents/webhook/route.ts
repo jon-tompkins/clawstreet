@@ -4,44 +4,15 @@ import { verifyApiKey, getSupabaseAdmin } from '@/app/lib/rps-utils'
 export const dynamic = 'force-dynamic'
 
 /**
- * GET /api/agents/webhook
- * Get current webhook configuration
- */
-export async function GET(request: NextRequest) {
-  try {
-    const apiKey = request.headers.get('X-API-Key')
-    if (!apiKey) {
-      return NextResponse.json({ error: 'Missing X-API-Key header' }, { status: 401 })
-    }
-
-    const agent = await verifyApiKey(apiKey)
-    if (!agent) {
-      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
-    }
-
-    const supabase = getSupabaseAdmin()
-    const { data } = await supabase
-      .from('agents')
-      .select('webhook_url, webhook_secret')
-      .eq('id', agent.agent_id)
-      .single()
-
-    return NextResponse.json({
-      webhook_url: data?.webhook_url || null,
-      has_secret: !!data?.webhook_secret,
-    })
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Internal error', details: error.message }, { status: 500 })
-  }
-}
-
-/**
  * POST /api/agents/webhook
- * Set webhook URL and optional secret
+ * Register or update webhook URL for an agent
+ * 
+ * Headers:
+ *   X-API-Key: Agent API key
  * 
  * Body:
- *   webhook_url: string (URL to receive event POSTs)
- *   webhook_secret?: string (optional, for HMAC signature verification)
+ *   webhook_url: string - URL to receive webhooks (or null to unregister)
+ *   webhook_secret?: string - Optional HMAC secret for signature verification
  */
 export async function POST(request: NextRequest) {
   try {
@@ -58,63 +29,59 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { webhook_url, webhook_secret } = body
 
-    // Validate URL
-    if (webhook_url) {
-      try {
-        const url = new URL(webhook_url)
-        if (!['http:', 'https:'].includes(url.protocol)) {
-          return NextResponse.json({ error: 'webhook_url must be http or https' }, { status: 400 })
-        }
-      } catch {
-        return NextResponse.json({ error: 'Invalid webhook_url' }, { status: 400 })
+    // Validate webhook_url if provided
+    if (webhook_url !== null && webhook_url !== undefined) {
+      if (typeof webhook_url !== 'string') {
+        return NextResponse.json({ error: 'webhook_url must be a string or null' }, { status: 400 })
+      }
+
+      if (webhook_url.trim() !== '' && !webhook_url.startsWith('http')) {
+        return NextResponse.json({ error: 'webhook_url must be a valid HTTP(S) URL' }, { status: 400 })
       }
     }
 
+    // Update agent's webhook configuration
     const supabase = getSupabaseAdmin()
-    
-    const updates: Record<string, any> = {
+    const updateData: any = {
       webhook_url: webhook_url || null,
     }
-    
-    // Only update secret if provided (null to clear, undefined to keep)
+
     if (webhook_secret !== undefined) {
-      updates.webhook_secret = webhook_secret || null
+      updateData.webhook_secret = webhook_secret || null
     }
 
     const { error } = await supabase
       .from('agents')
-      .update(updates)
+      .update(updateData)
       .eq('id', agent.agent_id)
 
     if (error) {
-      return NextResponse.json({ error: 'Failed to update', details: error.message }, { status: 500 })
+      console.error('Webhook registration error:', error)
+      return NextResponse.json({ error: 'Failed to update webhook configuration' }, { status: 500 })
     }
 
     return NextResponse.json({
       success: true,
+      agent_id: agent.agent_id,
+      agent_name: agent.name,
       webhook_url: webhook_url || null,
-      has_secret: !!webhook_secret,
-      message: webhook_url 
-        ? 'Webhook configured! You will receive POSTs for RPS game events.'
-        : 'Webhook cleared.',
-      events: [
-        'rps.challenge.received - Someone joined your game',
-        'rps.game.started - Game approved and started',
-        'rps.your_turn - Opponent submitted, your turn',
-        'rps.round.complete - Round resolved, next round starting',
-        'rps.game.complete - Game finished',
-      ],
+      webhook_secret_configured: !!webhook_secret,
+      message: webhook_url
+        ? 'Webhook registered successfully'
+        : 'Webhook unregistered successfully',
     })
+
   } catch (error: any) {
+    console.error('Webhook registration error:', error)
     return NextResponse.json({ error: 'Internal error', details: error.message }, { status: 500 })
   }
 }
 
 /**
- * DELETE /api/agents/webhook
- * Clear webhook configuration
+ * GET /api/agents/webhook
+ * Get current webhook configuration for an agent
  */
-export async function DELETE(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const apiKey = request.headers.get('X-API-Key')
     if (!apiKey) {
@@ -127,17 +94,25 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin()
-    
-    await supabase
+    const { data: agentData, error } = await supabase
       .from('agents')
-      .update({ webhook_url: null, webhook_secret: null })
+      .select('webhook_url, webhook_secret')
       .eq('id', agent.agent_id)
+      .single()
+
+    if (error || !agentData) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
+    }
 
     return NextResponse.json({
-      success: true,
-      message: 'Webhook cleared.',
+      agent_id: agent.agent_id,
+      agent_name: agent.name,
+      webhook_url: agentData.webhook_url || null,
+      webhook_secret_configured: !!agentData.webhook_secret,
     })
+
   } catch (error: any) {
+    console.error('Webhook get error:', error)
     return NextResponse.json({ error: 'Internal error', details: error.message }, { status: 500 })
   }
 }

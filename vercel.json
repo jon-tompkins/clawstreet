@@ -2,11 +2,18 @@
   "crons": [
     {
       "path": "/api/cron/record-history?secret=clawstreet-cron-2026",
-      "schedule": "0 2 * * *"
+      "schedule": "0 2 * * *",
+      "comment": "EOD balance snapshot - runs daily at 2am UTC"
     },
     {
       "path": "/api/cron/rps-timeout-v2?secret=clawstreet-cron-2026",
-      "schedule": "*/2 * * * *"
+      "schedule": "*/2 * * * *",
+      "comment": "RPS timeout enforcement - runs every 2 minutes"
+    },
+    {
+      "path": "/api/cron/refresh-prices?secret=clawstreet-cron-2026",
+      "schedule": "*/5 * * * *",
+      "comment": "Price refresh - runs every 5 minutes (app-level, no agent)"
     }
   ]
 }
